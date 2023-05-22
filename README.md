@@ -15,7 +15,7 @@ I happened to find myself working with esoteric uses for the
 spreedsheet syntax, and it turns out that if TDD was in order,
 the most entertaining way to do it was with python.
 
-#Syntax and AST
+# Syntax and AST
 
 The Jesting Lang syntax follows the standard used by most
 spreedsheets programs, allowing simple operations (+, -, *
@@ -27,10 +27,10 @@ those indirections)
 For example
 
     = 1 + 1 -> becomes 2
-    = 'A' & 'B' -> becomes AB
-    = 'A' & 2 -> becomes A2
+    = "A" & "B" -> becomes AB
+    = "A" & 2 -> becomes A2
     = A2 -> becomes an indirection to cell A2
-    = INDIRECT('A' & 2) -> becomes an indirection to cell A2
+    = INDIRECT("A" & 2) -> becomes an indirection to cell A2
     = IF(0 = 0 , 2 , 3) -> becomes 3
 
 The AST can become more complex, with nodes such as 
