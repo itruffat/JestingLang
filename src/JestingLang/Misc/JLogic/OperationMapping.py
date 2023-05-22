@@ -1,4 +1,5 @@
-from JLogic.LogicFunctions import variablesIntoIntegers
+from Misc.JLogic.LogicFunctions import variablesIntoIntegers
+from JParsing.JestingAST import operations as astOperations
 
 def operationPlus(variables):
     variables_int, errors = variablesIntoIntegers(variables, "Plus(+)")
@@ -12,7 +13,10 @@ def operationMinus(variables):
     variables_int, errors = variablesIntoIntegers(variables, "Minus(-)")
     answer = 0
     if len(errors) == 0:
-        answer = variables_int[0] - variables_int[1]
+        if len(variables_int) == 1:
+            answer = -variables_int[0]
+        else:
+            answer = variables_int[0] - variables_int[1]
     return errors, answer, "INT"
 
 
@@ -60,6 +64,7 @@ def operationNot(variables):
 operations = {
                 "+": operationPlus,
                 "-": operationMinus,
+                "u-": operationMinus,
                 "*": operationTimes,
                 "/": operationDivide,
                 "&": operationConcat,
@@ -70,3 +75,4 @@ operations = {
                 'OR': operationOr,
 }
 
+assert(astOperations == set(operations.keys()))

@@ -1,8 +1,9 @@
 from JParsing.JestingAST import IntValueNode, StrValueNode, ReferenceValueNode, BoolValueNode, \
-                                              OperationNode, IfNode, InvalidValueNode, operations
-from JLogic.LogicFunctions import boolean
+                                              OperationNode, IfNode, InvalidValueNode, \
+                                              ToleratedErrorNode
+from Misc.JLogic.LogicFunctions import boolean
 from JVisitors.AbstractJestingVisitor import AbstractJestingVisitor
-
+from Misc.JLogic.OperationMapping import operations
 
 def renodify(value, label):
     if label == "INT":
@@ -56,6 +57,9 @@ class ContextfreeInterpreterVisitor(AbstractJestingVisitor):
 
         return answer
 
-    def visitIndirect(self, node):
-        return node
+    def visitRef(self, node):
+        return ToleratedErrorNode(node.value, "CONTEXT FREE, NOT IMPLEMENTED")
 
+    def visitIndirect(self, node):
+        children_visited = node.children[0].accept(self)
+        return ToleratedErrorNode(children_visited, "CONTEXT FREE, NOT IMPLEMENTED")

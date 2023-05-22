@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from JLogic.JestingOperationMapping import operations
 
+operations = {"+","-","*","/","&","=",'>','NOT','AND','OR', "u-"}
 
 class Node(ABC):
     def __init__(self):
@@ -115,12 +115,11 @@ class ReferenceValueNode(SimpleValueNode):
     def volatile(self):
         return True
 
-
 class OperationNode(Node):
     def __init__(self, operation, children):
         super().__init__()
         self.operation = operation
-        assert (operation in operations.keys())
+        assert (operation in operations)
         self.children = children
 
     def accept(self, visitor):
@@ -163,3 +162,16 @@ class IndirectNode(Node):
 
     def volatile(self):
         return True
+
+class ToleratedErrorNode(Node): # Used to catch for not implemented errors
+
+    def __init__(self, value, error_msg):
+        super().__init__()
+        self.value = value
+        self.error_msg = error_msg
+
+    def volatile(self):
+        return False
+
+    def accept(self, visitor):
+        return visitor.visitToleratedError(self)

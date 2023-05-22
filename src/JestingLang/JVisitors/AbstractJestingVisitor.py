@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 
 
 class AbstractJestingVisitor(ABC):
@@ -9,6 +9,7 @@ class AbstractJestingVisitor(ABC):
     def visit(self, node):
         return node.accept(self)
 
+    @abstractmethod
     def visitSimple(self, node):
         return None
 

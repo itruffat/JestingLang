@@ -74,6 +74,10 @@ dmypy.json
 .pyre/
 .pytype/
 cython_debug/
-src/JParsing/parsetab.py
-src/JParsing/parser.out
+src/JestingLang/JParsing/parsetab.py
+src/JestingLang/JParsing/parser.out
 .idea
+bin/python3.10
+bin/python3
+bin/python
+src/JestingLang/JParsing/LexerParser_cachedParseTable.py

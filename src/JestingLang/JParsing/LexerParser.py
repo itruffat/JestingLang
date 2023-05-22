@@ -1,6 +1,3 @@
-from JVisitors.JestingPrintingVisitors import PrintingVisitor, TreePrinter
-from JVisitors.ContextfreeInterpreterVisitor import ContextfreeInterpreterVisitor
-from JVisitors.JestingInterpreterVisitor import JestingInterpreterVisitor
 import ply.yacc as yacc
 import ply.lex as lex
 
@@ -34,7 +31,6 @@ t_COMMA = r'\,'
 
 def t_CELL_ADDRESS(t):
     r'(?P<path>(?P<workbook>\[[a-zA-Z0-9\.\(\)]+\])?(?P<worksheet>[a-zA-Z][a-zA-Z0-9]*!))?\$?(?P<initial>([a-z]+|[A-Z]+)\$?[0-9]+)(?P<final>:\$?[a-zA-Z]+\$?[0-9]+)?'
-    print(t)
     return t
 
 
@@ -183,7 +179,7 @@ def p_parameter_text(t):
     text = text.replace(".", "_")
     text = text if text != "error" else "_error"
     if text in spreadsheet_function_set:
-        raise Exception(f"EXCEL FUNCTION '{t[1]}' NOT IMPLEMENTED")
+        raise Exception(f"FUNCTION '{t[1]}' NOT IMPLEMENTED")
     else:
         raise Exception(f"'{t[1]}' is Unknown")
 
@@ -192,53 +188,4 @@ def p_error(t):
     print("Syntax error at '%s'" % t.value)
 
 
-parser = yacc.yacc()
-
-
-def parse(line):
-    lexer.input(line[1:])
-    # while True:
-    #    tok = lexer.token()
-    #    if not tok:
-    #        break  # No more input
-    parsed = parser.parse(line[1:])
-    return parsed
-
-
-if __name__ == "__main__":
-
-    visitor1 = PrintingVisitor()
-    visitor2 = TreePrinter()
-    visitor3 = ContextfreeInterpreterVisitor()
-    visitor4 = JestingInterpreterVisitor()
-    mapWorkspace = {}
-
-    while True:
-        try:
-            s = input('> ')
-        except EOFError:
-            break
-        if s[0] == "=":
-            tree = parse(s)
-            if tree is not None:
-                visitor1.visit(tree)
-                visitor2.visit(tree)
-                new_tree = visitor3.visit(tree)
-                visitor1.visit(new_tree)
-                visitor2.visit(new_tree)
-        if s[0] == "+":
-           print(mapWorkspace[s[1:]])
-        if s[0] == ":":
-            if len(s.split(":")) == 3:
-                _, key, string = s.split(":")
-            else:
-                key, string = (None, s[1:])
-            string = "=" + string
-            print(string)
-            tree = parse(string)
-            if tree is not None:
-                visitor1.visit(tree)
-                visitor2.visit(tree)
-                new_tree = visitor4.visit(tree, resolver=lambda x: mapWorkspace[x])
-                if key is not None:
-                    mapWorkspace[key] = new_tree
+parser = yacc.yacc(tabmodule="LexerParser_cachedParseTable", debug=False)

@@ -20,6 +20,9 @@ class PrintingVisitor(AbstractJestingVisitor):
     def visitIndirect(self, node):
         return "INDIRECT({})".format(node.children[0].accept(self))
 
+    def visitToleratedError(self, node):
+        return "[{}] ERROR ({})".format(node.value, node.error_msg)
+
 
 class TreePrinter(AbstractJestingVisitor):
 
@@ -62,3 +65,6 @@ class TreePrinter(AbstractJestingVisitor):
 
     def visitIndirect(self, node):
         return "INDIRECT", [node.children[0].accept(self)], node.volatile()
+
+    def visitToleratedError(self, node):
+        return "[{}] Error ({})".format(node.value, node.error_msg), [], True
