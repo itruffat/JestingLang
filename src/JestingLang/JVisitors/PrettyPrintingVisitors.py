@@ -1,4 +1,4 @@
-from JVisitors.AbstractJestingVisitor import AbstractJestingVisitor
+from JestingLang.JVisitors.AbstractJestingVisitor import AbstractJestingVisitor
 
 
 class PrintingVisitor(AbstractJestingVisitor):

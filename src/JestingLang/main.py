@@ -1,8 +1,8 @@
-from JParsing.LexerParser import lexer,parser
-from JVisitors.PrettyPrintingVisitors import PrintingVisitor, TreePrinter
-from JVisitors.ContextfreeInterpreterVisitor import ContextfreeInterpreterVisitor
-from JVisitors.ContextBoundInterpreterVisitor import ContextBoundInterpreterVisitor
-from Misc.JContext.MapContext import MapContext
+from JestingLang.JParsing.LexerParser import lexer,parser
+from JestingLang.JVisitors.PrettyPrintingVisitors import PrintingVisitor, TreePrinter
+from JestingLang.JVisitors.ContextfreeInterpreterVisitor import ContextfreeInterpreterVisitor
+from JestingLang.JVisitors.ContextBoundInterpreterVisitor import ContextBoundInterpreterVisitor
+from JestingLang.Misc.JContext.MapContext import MapContext
 
 visitor_pointer = []
 

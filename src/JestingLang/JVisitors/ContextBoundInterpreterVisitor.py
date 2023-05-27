@@ -1,6 +1,6 @@
-from JParsing.JestingAST import InvalidValueNode, ReferenceValueNode
-from Misc.JLogic.LogicFunctions import ref
-from JVisitors.ContextfreeInterpreterVisitor import ContextfreeInterpreterVisitor
+from JestingLang.JParsing.JestingAST import InvalidValueNode, ReferenceValueNode
+from JestingLang.Misc.JLogic.LogicFunctions import ref
+from JestingLang.JVisitors.ContextfreeInterpreterVisitor import ContextfreeInterpreterVisitor
 
 
 class ContextBoundInterpreterVisitor(ContextfreeInterpreterVisitor):

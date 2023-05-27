@@ -1,7 +1,7 @@
 import ply.yacc as yacc
 import ply.lex as lex
 
-from JParsing.JestingAST import *
+from JestingLang.JParsing.JestingAST import *
 
 spreadsheet_function_set = {}
 

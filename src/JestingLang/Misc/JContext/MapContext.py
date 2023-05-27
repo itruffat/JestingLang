@@ -1,5 +1,5 @@
 from Misc.JContext.AbstractContext import AbstractContext
-from JParsing.JestingAST import SimpleValueNode
+from JestingLang.JParsing.JestingAST import SimpleValueNode
 
 
 class MapContext(AbstractContext):

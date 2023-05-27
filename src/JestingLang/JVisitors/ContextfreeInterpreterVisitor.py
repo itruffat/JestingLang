@@ -1,9 +1,9 @@
-from JParsing.JestingAST import IntValueNode, StrValueNode, ReferenceValueNode, BoolValueNode, \
+from JestingLang.JParsing.JestingAST import IntValueNode, StrValueNode, ReferenceValueNode, BoolValueNode, \
                                               OperationNode, IfNode, InvalidValueNode, \
                                               ToleratedErrorNode
-from Misc.JLogic.LogicFunctions import boolean
-from JVisitors.AbstractJestingVisitor import AbstractJestingVisitor
-from Misc.JLogic.OperationMapping import operations
+from JestingLang.Misc.JLogic.LogicFunctions import boolean
+from JestingLang.JVisitors.AbstractJestingVisitor import AbstractJestingVisitor
+from JestingLang.Misc.JLogic.OperationMapping import operations
 
 def renodify(value, label):
     if label == "INT":
