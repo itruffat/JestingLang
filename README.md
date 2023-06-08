@@ -37,6 +37,20 @@ The AST can become more complex, with nodes such as
 *EmptyValue* or *DateValue*. However, they can be easily
 solved by using the Visitors provided in this library.
 
+# Fixed vs Volatile Visitors
+
+Some APPS using JestingLang may need to precompile a tree 
+without actually resolving values and references, as the 
+value of a cell may get updated data every once in a while 
+without updating the formula behind it. With that in mind,
+the concept of **volatile** was included in this lib. 
+
+A volatile Node is one such that it has (or includes or some 
+sub-branch that has) a value that is not fixed. In turn, a 
+volatile visitor is one that resolves all volatile nodes 
+when visiting a tree. A fixed tree does the opposite, and 
+returns a Tree without exploring any volatile Node. 
+
 # TODO
 
 * Finish dates

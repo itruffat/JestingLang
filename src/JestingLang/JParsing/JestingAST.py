@@ -26,10 +26,11 @@ class SimpleValueNode(Node, ABC):
 
 class EmptyValueNode(SimpleValueNode):
     def __init__(self):
-        super().__init__("")
+        super().__init__(None)
 
     def accept(self, visitor):
-        return visitor.visitEmpty(self)
+        child = visitor.visitEmpty(self)
+        return super().accept(visitor) if child is None else child
 
     def volatile(self):
         return False

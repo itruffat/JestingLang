@@ -1,4 +1,4 @@
-from Misc.JLogic.LogicFunctions import variablesIntoIntegers
+from JestingLang.Misc.JLogic.LogicFunctions import variablesIntoIntegers
 from JestingLang.JParsing.JestingAST import operations as astOperations
 
 def operationPlus(variables):
@@ -38,7 +38,8 @@ def operationDivide(variables):
     return errors, answer, "INT"
 
 def operationConcat(variables):
-    return [], str(variables[0]) + str(variables[1]), "STR"
+    return [], str(variables[0] if variables[0] is not None else '') + \
+               str(variables[1] if variables[1] is not None else ''), "STR"
 
 
 def operationEquals(variables):

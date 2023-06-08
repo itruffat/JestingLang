@@ -13,6 +13,9 @@ class AbstractJestingVisitor(ABC):
     def visitSimple(self, node):
         return None
 
+    def visitEmpty(self, node):
+        return None
+
     def visitInvalid(self, node):
         return None
 

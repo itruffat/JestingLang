@@ -19,7 +19,7 @@ def boolean(pseudo_boolean):
 
 
 def integer(pseudo_integer):
-    if pseudo_integer == "":
+    if pseudo_integer == "" or pseudo_integer is None:
         return 0
     else:
         if digit.match(str(pseudo_integer)):

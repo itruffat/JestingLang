@@ -20,6 +20,10 @@ class ContextfreeInterpreterVisitor(AbstractJestingVisitor):
 
     """The basic resolver for the syntax, does not depend on anything besides itself but can't resolve references"""
 
+    def __init__(self, resolveVolatile):
+        super().__init__()
+        self.resolveVolatile = resolveVolatile
+
     def visit(self, node):
         return node.accept(self)
 
@@ -28,7 +32,7 @@ class ContextfreeInterpreterVisitor(AbstractJestingVisitor):
 
     def visitOperation(self, node):
         visitedChildren = {k: v.accept(self) for k, v in node.children.items()}
-        if any(map(lambda c:c.volatile(), visitedChildren.values())):
+        if not self.resolveVolatile and any(map(lambda c:c.volatile(), visitedChildren.values())):
             answer = OperationNode(node.operation, visitedChildren)
         else:
             variables = {k : v.value for k,v in visitedChildren.items()}
@@ -41,19 +45,21 @@ class ContextfreeInterpreterVisitor(AbstractJestingVisitor):
 
     def visitIf(self, node):
         _if = node.children[0].accept(self)
-        _then = node.children[1].accept(self)
-        _else = node.children[2].accept(self)
 
-        if _if.volatile():
-            answer = IfNode(_if,_then,_else)
+        if not self.resolveVolatile and _if.volatile():
+            _then = node.children[1].accept(self)
+            _else = node.children[2].accept(self)
+            answer = IfNode(_if, _then, _else)
         else:
             # This behaviour is not real since spreedsheets don't use short-circuit (for whatever reason)
-            if boolean(_if.value) and not _then.volatile():
-               answer = _then
-            elif not boolean(_if.value) and not _else.volatile():
-                answer = _else
+            if boolean(_if.value):
+                # if boolean(_if.value) and (self.resolveVolatile or not _then.volatile()):
+                _then = node.children[1].accept(self)
+                answer = _then
             else:
-                answer = IfNode(_if,_then,_else)
+                # elif not boolean(_if.value) and (self.resolveVolatile or not _else.volatile()):
+                _else = node.children[2].accept(self)
+                answer = _else
 
         return answer
 

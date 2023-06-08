@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='JestingLang',
-    version='0.0.0a4',
+    version='0.0.0a5',
     author='itrufat',
     description='A compiler for the minimalist spreadsheet language Jesting',
     long_description='A compiler + a few node navigators (including an interpreter) for a minimalist language intended to copy the most basic functionalities found in spreadsheet-applications called JestingLang. It was created to be used with Jesting, a spreadsheet terminal tool.',
