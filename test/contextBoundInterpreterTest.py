@@ -95,7 +95,6 @@ class contextBoundInterpreterTest(TestCase):
         self.assertEquals("A1", self.visitor_without_formula_fixed.visit(parser.parse("A1")).value)
 
         with self.assertRaises(RecursionError):
-            self.context_without_formula.write("A1", parser.parse("A1"))
             self.visitor_without_formula_volatile.visit(parser.parse("A1"))
 
         self.context_with_formula.write("A1", parser.parse("A1"), None)

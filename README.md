@@ -51,6 +51,52 @@ volatile visitor is one that resolves all volatile nodes
 when visiting a tree. A fixed tree does the opposite, and 
 returns a Tree without exploring any volatile Node. 
 
+
+# Multiline Script Parser/Lexer
+
+A small variation  has been made for the parser/lexer so
+that an additional syntax instructions are understood. 
+This represent common things done in spreedsheet APPs,
+such as giving a cell a value, giving a cell a formula,
+changing 'current sheet/page/cells', printing a value,
+making a comment and making "time progress".
+
+For example, if we had this as a file *example.jestScript*:
+
+    // Comments are allowed and should always start with a '//'
+
+    // Set the default values (needs to be a cell)
+    : [BOOK_A]Sheet_A!A1
+
+    //  Set the raw value "12" to the cell [BOOK_A]Sheet_A!A1
+    A1 @12
+    // Set the result ("12") to the cell [BOOK_A]Sheet_A!A2 
+    A2 @= 12
+    // Set the formula below to the cell [BOOK_A]Sheet_A!A3 
+    A3 @= A1 * 2
+
+    // Run a Tick of time. ([BOOK_A]Sheet_A!A3 will become 24) 
+    '
+
+    // Output the value of [BOOK_A]Sheet_A!A2 
+    !A2
+    // Output all of the values 
+    !!
+
+We could compile it in Python with:
+
+    lexerparser = LexerParser(multilineScript=True)
+    parser = lexerparser.parser
+    with open("example.jestScript", "r") as f:
+         tree = parser.parse(f.read())
+
+This mostly exists to do internal testing, and it's not
+powerful enough to use for a real interpreter. I plan to 
+add a handful of test to make sure the language is working 
+as expected.
+
 # TODO
 
-* Finish dates
+* Finish dates as datatypes
+* Finish the Script visitor
+* Use the script visitor to create more test cases

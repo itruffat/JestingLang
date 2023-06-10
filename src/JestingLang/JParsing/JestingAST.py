@@ -14,7 +14,6 @@ class Node(ABC):
     def volatile(self):
         pass
 
-
 class SimpleValueNode(Node, ABC):
     def __init__(self, value):
         super().__init__()
