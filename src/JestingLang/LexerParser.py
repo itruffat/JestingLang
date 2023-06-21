@@ -1,8 +1,12 @@
 import ply.yacc as yacc
 import ply.lex as lex
+from JestingLang.Core.JParsing.JestingAST import *
+from JestingLang.JestingScript.JParsing.JestingScriptAST import *
 
-from JestingLang.JParsing.JestingAST import *
-from JestingLang.JParsing.JestingScriptAST import *
+
+def subtokenIsType(tokens, position, checkType):
+    return tokens.slice[position].type == checkType
+
 
 class LexerParser:
 
@@ -18,7 +22,7 @@ class LexerParser:
                  ) + self.implemented_functions + ('TEXT',)
         if self.multilineScript:
             self.tokens += ('ASSIGN_FORMULA', 'ASSIGN_VALUE', 'UNASSIGN', 'TICK',
-                            'SETDEFAULTS', 'PRINT', 'PRINTALL', 'NEWLINE', 'COMMENT', )
+                            'SETDEFAULTS', 'PRINT', 'PRINTALL', 'NEWLINE', 'COMMENT','OPEN', 'CLOSE', )
         self.setup_tokens()
         self.lexer = self.jesting_lexer()
         self.parser = self.jesting_parser()
@@ -42,19 +46,41 @@ class LexerParser:
 
     def jesting_lexer(self):
 
-        t_STRING = r'"[^"]*"'
+        #t_STRING = r'"[^"]*"'
+        def t_STRING(t):
+            r'("[^"]*")|(\'[^\']*\')'
+            t.value = t.value[1:-1]
+            return t
 
         # ~~~ START OF MULTILINE
 
         if self.multilineScript:
-            t_ASSIGN_VALUE = r'@[^=\n][^\n]*'
             t_ASSIGN_FORMULA = r'@='
+            #t_ASSIGN_VALUE = r'@\s[^\n]+'
+            def t_ASSIGN_VALUE(t):
+                r'@\s[^\n]+'
+                t.value = t.value[2:]
+                return t
             t_UNASSIGN = r'@'
-            t_TICK = r'\'+'
+            t_TICK = r'~+'
             t_SETDEFAULTS=r':'
             t_PRINTALL=r'!!'
             t_PRINT=r'!'
-            t_COMMENT=r'//[^\n]*'
+            #t_COMMENT=r'//[^\n]*'
+            def t_COMMENT(t):
+                r'//[^\n]*'
+                t.value = t.value[2:]
+                return t
+            #t_OPEN=r'}[^\n]*'
+            def t_OPEN(t):
+                r'}[^\n]*'
+                t.value = f"[{t.value[1:].strip()}]"
+                return t
+            #t_CLOSE=r'{[^\n]*'
+            def t_CLOSE(t):
+                r'{[^\n]*'
+                t.value = f"[{t.value[1:].strip()}]"
+                return t
 
         # ~~~ END OF MULTILINE
 
@@ -164,33 +190,50 @@ class LexerParser:
                         | TICK
                         | PRINTALL
                         | PRINT CELL_ADDRESS
+                        | OPEN
+                        | CLOSE
                         | SETDEFAULTS CELL_ADDRESS
                         | CELL_ADDRESS UNASSIGN
                         | CELL_ADDRESS ASSIGN_VALUE
+                        | PRINT EQUALS CELL_ADDRESS
                         | CELL_ADDRESS ASSIGN_FORMULA statement
                 '''
 
                 if len(t) == 2:
 
-                    if t[1] == "!!":
+                    if subtokenIsType(t,1,"PRINTALL"):
+                    #if t[1] == "!!":
                         t[0] = PrintValueNode(print_all=True)
-                    elif t[1] == "'":
+                    elif subtokenIsType(t, 1, "TICK"):
+                    #elif t[1] == "~":
                         t[0] = TickNode(len(t[1]))
+                    elif subtokenIsType(t, 1, "OPEN"):
+                    #elif t[1][0] == "}":
+                        t[0] = OpenCloseFileNode(t[1], do_open=True)
+                    elif subtokenIsType(t, 1, "CLOSE"):
+                    #elif t[1][0] == "{":
+                        t[0] = OpenCloseFileNode(t[1], do_open=False)
                     else:
                         t[0] = None
 
                 elif len(t) == 3:
-                    if t[1] == ":":
+                    if subtokenIsType(t,1,"SETDEFAULTS"):
+                    #if t[1] == ":":
                         t[0] = SetDefaultsNode(t[2])
-                    elif t[1] == "!":
-                        t[0] = PrintValueNode(cell=t[2])
-                    elif t[2] == "@":
+                    elif subtokenIsType(t, 1, "PRINT"):
+                    #elif t[1] == "!":
+                        t[0] = PrintValueNode(cell=t[2], print_value=True)
+                    elif subtokenIsType(t, 2, "UNASSIGN"):
+                    #elif t[2] == "@":
                         t[0] = AssignNode(t[1], EmptyValueNode())
                     else:
                         t[0] = AssignNode(t[1], RawInputNode(t[2]))
 
                 elif len(t) == 4:
-                    t[0] = AssignNode(t[1], t[3])
+                    if subtokenIsType(t,2,"EQUALS"):
+                        t[0] = PrintValueNode(cell=t[3], print_value=False)
+                    else:
+                        t[0] = AssignNode(t[1], t[3])
 
                 return t[0]
 
@@ -272,7 +315,7 @@ class LexerParser:
 
         def p_parameter_STR(t):
             '''parameter    : STRING'''
-            t[0] = StrValueNode(t[1][1:-1])
+            t[0] = StrValueNode(t[1])
             return t[0]
 
 
@@ -305,11 +348,3 @@ class LexerParser:
 
         parser = yacc.yacc(tabmodule="LexerParser_cachedParseTable", debug=False)
         return parser
-
-
-lexerparser = LexerParser()
-
-lexer = lexerparser.lexer
-
-parser = lexerparser.parser
-

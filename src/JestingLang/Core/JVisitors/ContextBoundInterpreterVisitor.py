@@ -1,20 +1,22 @@
-from JestingLang.JParsing.JestingAST import InvalidValueNode, ReferenceValueNode, IndirectNode
+from JestingLang.Core.JParsing.JestingAST import InvalidValueNode, ReferenceValueNode, IndirectNode
 from JestingLang.Misc.JLogic.LogicFunctions import ref
-from JestingLang.JVisitors.ContextfreeInterpreterVisitor import ContextfreeInterpreterVisitor
+from JestingLang.Core.JDereferencer.AbstractDereferencer import AbstractDereferencer
+from JestingLang.Core.JVisitors.ContextfreeInterpreterVisitor import ContextfreeInterpreterVisitor
 
 
 class ContextBoundInterpreterVisitor(ContextfreeInterpreterVisitor):
 
     """The complete syntax resolver, it requires a reference resolver to get the references when visiting stuff"""
-    def __init__(self, context, resolveVolatile):
+    def __init__(self, dereferencer : AbstractDereferencer, resolveVolatile):
         super().__init__(resolveVolatile)
-        self.contextResolver = context
+        self.dereferencer = dereferencer
 
     def visitRef(self, node):
         if node.volatile and (not self.resolveVolatile):
             return node
-        referencedNode = self.contextResolver.resolve(node.value)
-        return InvalidValueNode("Broken reference") if referencedNode is None else referencedNode.accept(self)
+        referencedNode = self.dereferencer.resolveReference(node.value)
+        answer = InvalidValueNode("Broken reference") if referencedNode is None else referencedNode.accept(self)
+        return answer
 
     def visitIndirect(self, node):
         children_visited = node.children[0].accept(self)

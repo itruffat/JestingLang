@@ -17,14 +17,19 @@ class Node(ABC):
 class SimpleValueNode(Node, ABC):
     def __init__(self, value):
         super().__init__()
+        self.name = ""
         self.value = value
 
     def accept(self, visitor):
         return visitor.visitSimple(self)
 
+    #def __str__(self):
+        #return f"{self.name}:{str(self.value)}"
+
 
 class EmptyValueNode(SimpleValueNode):
     def __init__(self):
+        self.name = "empty"
         super().__init__(None)
 
     def accept(self, visitor):
@@ -56,6 +61,7 @@ class NAError():
 class InvalidValueNode(SimpleValueNode):
 
     def __init__(self, value):
+        self.name = "INVALID"
         super().__init__(NAError() if value == "#NA" else InnerError(value))
 
     def accept(self, visitor):
@@ -69,6 +75,7 @@ class InvalidValueNode(SimpleValueNode):
 class StrValueNode(SimpleValueNode):
 
     def accept(self, visitor):
+        self.name = "str"
         child = visitor.visitStr(self)
         return super().accept(visitor) if child is None else child
 
@@ -79,6 +86,7 @@ class StrValueNode(SimpleValueNode):
 class IntValueNode(SimpleValueNode):
 
     def accept(self, visitor):
+        self.name = "Integer"
         child = visitor.visitInt(self)
         return super().accept(visitor) if child is None else child
 
@@ -89,6 +97,7 @@ class IntValueNode(SimpleValueNode):
 class BoolValueNode(SimpleValueNode):
 
     def accept(self, visitor):
+        self.name = "Boolean"
         child = visitor.visitBool(self)
         return super().accept(visitor) if child is None else child
 
@@ -99,6 +108,7 @@ class BoolValueNode(SimpleValueNode):
 class DateValueNode(SimpleValueNode):
 
     def accept(self, visitor):
+        self.name = "Date"
         child = visitor.visitDate(self)
         return super().accept(visitor) if child is None else child
 
@@ -109,6 +119,7 @@ class DateValueNode(SimpleValueNode):
 class ReferenceValueNode(SimpleValueNode):
 
     def accept(self, visitor):
+        self.name = "Ref"
         child = visitor.visitRef(self)
         return super().accept(visitor) if child is None else child
 
@@ -127,6 +138,9 @@ class OperationNode(Node):
 
     def volatile(self):
         return any(map(lambda c: c.volatile(), self.children.values()))
+
+    #def __str__(self):
+        #return f"Operation({str(self.operation)}):{','.join(map(lambda x:str(x), self.children))}"
 
 
 class IfNode(Node):

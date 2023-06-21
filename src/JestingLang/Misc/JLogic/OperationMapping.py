@@ -1,5 +1,5 @@
 from JestingLang.Misc.JLogic.LogicFunctions import variablesIntoIntegers
-from JestingLang.JParsing.JestingAST import operations as astOperations
+from JestingLang.Core.JParsing.JestingAST import operations as astOperations
 
 def operationPlus(variables):
     variables_int, errors = variablesIntoIntegers(variables, "Plus(+)")

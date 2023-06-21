@@ -1,8 +1,8 @@
-import JestingLang.JParsing.LexerParser
-from JestingLang.JParsing.JestingAST import *
+from JestingLang.LexerParser import LexerParser
+from JestingLang.Core.JParsing.JestingAST import ReferenceValueNode
 from unittest import TestCase
 
-parser = JestingLang.JParsing.LexerParser.parser
+parser = LexerParser().parser
 
 
 class parserTest(TestCase):

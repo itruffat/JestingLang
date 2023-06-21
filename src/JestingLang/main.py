@@ -1,48 +1,50 @@
-from JestingLang.JParsing.LexerParser import lexer,parser
-from JestingLang.JVisitors.PrettyPrintingVisitors import PrintingVisitor, TreePrinter
-from JestingLang.JVisitors.ContextfreeInterpreterVisitor import ContextfreeInterpreterVisitor
-from JestingLang.JVisitors.ContextBoundInterpreterVisitor import ContextBoundInterpreterVisitor
-from JestingLang.Misc.JContext.MapContext import MapContext
-
-visitor_pointer = []
-
-
-def intoAST(line):
-    _line = line[1:]
-    lexer.input(_line)
-    _parsed_tree = parser.parse(_line)
-    return _parsed_tree
-
-
-def run(line, visitorp=visitor_pointer):
-    if len(visitorp) == 0:
-        visitorp.append(ContextBoundInterpreterVisitor(MapContext()))
-    if line[0] != "=":
-        return "INVALID LINE!"
-    _line = line[1:]
-    lexer.input(_line)
-    _parsed_tree = parser.parse(_line)
-    _visitor = visitorp[0]
-    return _visitor.visit(_parsed_tree), _parsed_tree
-
+from JestingLang.LexerParser import LexerParser
+from JestingLang.Core.JVisitors.PrettyPrintingVisitors import PrintingVisitor, TreePrinter
+from JestingLang.Core.JVisitors.ContextfreeInterpreterVisitor import ContextfreeInterpreterVisitor
+from JestingLang.Core.JVisitors.ContextBoundInterpreterVisitor import ContextBoundInterpreterVisitor
+from JestingLang.Core.JDereferencer.KeyValueDereferencer import KeyValueDereferencer
 
 if __name__ == "__main__":
+
+    lexerParser = LexerParser()
+    lexer = lexerParser.lexer
+    parser = lexerParser.parser
+
+    def intoAST(line):
+        _line = line[1:]
+        lexer.input(_line)
+        _parsed_tree = parser.parse(_line)
+        return _parsed_tree
+
+    visitor_pointer = []
+
+    def run(line, visitorp=visitor_pointer):
+        if len(visitorp) == 0:
+            visitorp.append(ContextBoundInterpreterVisitor(KeyValueDereferencer(), resolveVolatile=False))
+        if line[0] != "=":
+            return "INVALID LINE!"
+        _line = line[1:]
+        lexer.input(_line)
+        _parsed_tree = parser.parse(_line)
+        _visitor = visitorp[0]
+        return _visitor.visit(_parsed_tree), _parsed_tree
 
     print("Examples of visitors")
     print("--------------------")
 
     visitor1 = PrintingVisitor()
     visitor2 = TreePrinter()
-    visitor3 = ContextfreeInterpreterVisitor()
-    mapContext = MapContext()
-    visitor4 = ContextBoundInterpreterVisitor(mapContext)
+    visitor3 = ContextfreeInterpreterVisitor(resolveVolatile=False)
+    mapContext = KeyValueDereferencer()
+    visitor4 = ContextBoundInterpreterVisitor(mapContext, resolveVolatile=False)
 
     visitors = [visitor1, visitor2, visitor3, visitor4]
     visitors_names=["Printer", "TreePrinter", "ContextFree", "ContextBound"]
 
     response = None
     while response not in map(str, range(4)):
-        response = input("\n".join(["Pick a visitor:"] + ["  {}. {}".format(n,item) for n,item in enumerate(visitors_names)]+['']))
+        response = input("\n".join(["Pick a visitor:"] + ["  {}. {}".format(n,item)
+                                                          for n,item in enumerate(visitors_names)]+['']))
 
     _visitor=visitors[int(response)]
 

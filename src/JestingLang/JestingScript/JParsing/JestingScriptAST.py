@@ -1,4 +1,4 @@
-from JestingLang.JParsing.JestingAST import Node, EmptyValueNode
+from JestingLang.Core.JParsing.JestingAST import Node, EmptyValueNode
 
 class ScriptNode(Node):
     def __init__(self, child):
@@ -29,7 +29,7 @@ class TickNode(Node):
 class RawInputNode(Node):
     def __init__(self, value):
         super().__init__()
-        self.value = value[1:]
+        self.value = value
 
     def accept(self, visitor):
         return visitor.visitRawInput(self)
@@ -40,10 +40,11 @@ class RawInputNode(Node):
 class AssignNode(Node):
     def __init__(self, cell, statement):
         super().__init__()
-        self.children = {0: cell, 1: statement}
+        self.target = cell
+        self.children = {0: statement}
 
     def accept(self, visitor):
-        return visitor.visitAssignNode(self)
+        return visitor.visitAssign(self)
 
     def volatile(self):
         return False
@@ -54,20 +55,33 @@ class SetDefaultsNode(Node):
         self.children = {0: cell}
 
     def accept(self, visitor):
-        return visitor.visitSetDefaultsNode(self)
+        return visitor.visitSetDefaults(self)
 
     def volatile(self):
         return False
 
 
 class PrintValueNode(Node):
-    def __init__(self, *, cell=EmptyValueNode(), print_all=False):
+    def __init__(self, *, cell=EmptyValueNode(), print_all=False, print_value=False):
         super().__init__()
         self.print_all = print_all
+        self.print_value = print_value
         self.children = {0: cell}
 
     def accept(self, visitor):
-        return visitor.visitPrintValueNode(self)
+        return visitor.visitPrintValue(self)
+
+    def volatile(self):
+        return False
+
+class OpenCloseFileNode(Node):
+    def __init__(self, value, *, do_open):
+        super().__init__()
+        self.value = value
+        self.do_open = do_open
+
+    def accept(self, visitor):
+        return visitor.visitOpenCloseFile(self)
 
     def volatile(self):
         return False

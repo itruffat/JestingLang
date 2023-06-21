@@ -4,16 +4,29 @@ address_regex =  r'(?P<path>(?P<workbook>\[[a-zA-Z0-9\.\(\)]+\])?(?P<worksheet>[
 
 digit = re.compile(r' *-?\d+ *')
 address = re.compile(address_regex)
-numeric = re.compile(r'[0-9]+')
+boolean_true = re.compile(r'TRUE|true')
+boolean_false = re.compile(r'FALSE|false')
+#numeric = re.compile(r'[0-9]+')
+
+def label_data(data):
+    sdata = str(data)
+    if boolean_true.match(sdata) or boolean_false.match(sdata):
+        return "BOOL"
+    if digit.match(sdata):
+        return "INT"
+    #if address.match(sdata):
+    #    return "REF"
+    return "STR"
 
 def boolean(pseudo_boolean):
-    if pseudo_boolean in ["TRUE","true"]:
+    sboolean = str(pseudo_boolean)
+    if boolean_true.match(sboolean):
         return True
-    if pseudo_boolean in ["False","false"]:
+    if boolean_false.match(sboolean):
         return False
     #if pseudo_boolean is date:
     #   return True
-    if digit.match(str(pseudo_boolean)):
+    if digit.match(sboolean):
         return int(pseudo_boolean) < 0
     return None
 

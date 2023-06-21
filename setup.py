@@ -9,7 +9,7 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/itruffat/JestingLang',
     packages=['JestingLang', 'JestingLang.JParsing', 'JestingLang.JVisitors', 'JestingLang.Misc',
-              'JestingLang.Misc.JLogic', 'JestingLang.Misc.JContext', 'JestingLang.Misc.JExample'],
+              'JestingLang.Misc.JLogic', 'JestingLang.Misc.JDereferencer', 'JestingLang.Misc.JExample'],
     package_dir={'': 'src'},
     classifiers=[
         'Development Status :: 3 - Alpha',
