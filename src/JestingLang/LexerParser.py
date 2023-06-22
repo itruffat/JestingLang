@@ -13,13 +13,13 @@ class LexerParser:
     def __init__(self, *, multilineScript = False):
 
         self.multilineScript = multilineScript
-        self.spreadsheet_function_set = {}
+        self.spreadsheet_function_set = ( 'MOD' , )
         self.implemented_functions = ('IF', 'INDIRECT', 'NOT', 'AND', 'OR')
         self.tokens = (
                      'CELL_ADDRESS', 'NUMBER', 'BOOLEAN',
                      'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'EQUALS', 'BIGGER', 'SMALLER',
                      'LPAREN', 'RPAREN', 'AMPERSAND', 'STRING', 'COMMA'
-                 ) + self.implemented_functions + ('TEXT',)
+                 ) + self.implemented_functions + self.spreadsheet_function_set + ('TEXT',)
         if self.multilineScript:
             self.tokens += ('ASSIGN_FORMULA', 'ASSIGN_VALUE', 'UNASSIGN', 'TICK',
                             'SETDEFAULTS', 'PRINT', 'PRINTALL', 'NEWLINE', 'COMMENT','OPEN', 'CLOSE', )
@@ -95,6 +95,7 @@ class LexerParser:
         t_RPAREN = r'\)'
         t_AMPERSAND = r'&'
         t_COMMA = r'\,'
+        t_MOD = r'MOD'
 
         def t_CELL_ADDRESS(t):
             r'(?P<path>(?P<workbook>\[[a-zA-Z0-9\.\(\)]+\])?(?P<worksheet>[a-zA-Z][a-zA-Z0-9]*!))?\$?(?P<initial>([a-z]+|[A-Z]+)\$?[0-9]+)(?P<final>:\$?[a-zA-Z]+\$?[0-9]+)?'
@@ -252,16 +253,33 @@ class LexerParser:
                                     | NOT LPAREN statement RPAREN
                                     | AND LPAREN statement COMMA statement RPAREN
                                     | OR LPAREN statement COMMA statement RPAREN
-                                    | INDIRECT LPAREN statement RPAREN '''
-            if t[1] == 'NOT':
+                                    | INDIRECT LPAREN statement RPAREN
+                                    | TEXT LPAREN statement RPAREN
+                                    | TEXT LPAREN statement COMMA statement RPAREN
+                                    | TEXT LPAREN statement COMMA statement COMMA statement RPAREN '''
+            if subtokenIsType(t, 1, "NOT"):
+            #if t[1] == 'NOT':
                 t[0] = OperationNode(t[1], {0: t[3]})
-            if t[1] in ('AND', 'OR'):
+            if subtokenIsType(t, 1, "AND") or subtokenIsType(t, 1, "OR"):
+            #if t[1] in ('AND', 'OR'):
                 t[0] = OperationNode(t[1], {0: t[3], 1: t[5]})
-            if t[1] == 'IF':
+            if subtokenIsType(t, 1, "IF"):
+            #if t[1] == 'IF':
                 t[0] = IfNode(t[3], t[5], t[7])
-            if t[1] == 'INDIRECT':
+            if subtokenIsType(t, 1, "INDIRECT"):
+            #if t[1] == 'INDIRECT':
                 t[0] = IndirectNode(t[3])
-
+            if subtokenIsType(t, 1, "TEXT"):
+                if t[1] not in self.spreadsheet_function_set:
+                    raise Exception("unknown text")
+                if len(t) == 5:
+                    t[0] = OperationNode(t[1], {0: t[3]})
+                elif len(t) == 7:
+                    t[0] = OperationNode(t[1], {0: t[3], 1: t[5]})
+                elif len(t) == 9:
+                    t[0] = OperationNode(t[1], {0: t[3], 1: t[5], 2: t[7]})
+                else:
+                    raise Exception("unknown call")
             return t[0]
 
 
@@ -331,8 +349,8 @@ class LexerParser:
             return t[0]
 
 
-        def p_parameter_text(t):
-            '''parameter     : TEXT'''
+        def p_text_parameter_text(t):
+            '''statement     : TEXT'''
             text = t[1]
             text = text.upper()
             text = text.replace(".", "_")

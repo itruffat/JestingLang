@@ -37,6 +37,13 @@ def operationDivide(variables):
         answer = variables_int[0] / variables_int[1]
     return errors, answer, "INT"
 
+def operationModulo(variables):
+    variables_int, errors = variablesIntoIntegers(variables, "Modulo(MOD)")
+    answer = 0
+    if len(errors) == 0:
+        answer = variables_int[0] % variables_int[1]
+    return errors, answer, "INT"
+
 def operationConcat(variables):
     return [], str(variables[0] if variables[0] is not None else '') + \
                str(variables[1] if variables[1] is not None else ''), "STR"
@@ -59,6 +66,7 @@ def operationBigger(variables):
         answer = variables_int[0] > variables_int[1]
     return errors, answer, "BOOL"
 
+
 def operationNot(variables):
     return [], not(variables[0]), "BOOL"
 
@@ -74,6 +82,7 @@ operations = {
                 'NOT': operationNot,
                 'AND': operationAnd,
                 'OR': operationOr,
+                'MOD': operationModulo,
 }
 
 assert(astOperations == set(operations.keys()))

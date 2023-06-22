@@ -52,6 +52,39 @@ class ContextBoundInterpreterWithKeyValueDereferencerTest(TestCase):
         self.assertEqual("A2",self.visitor_fixed.visit(tree).children[1].value)
         self.assertEqual(30, self.visitor_volatile.visit(tree).value)
 
+    def test_modulo_of_visit(self):
+        self.helper.writeNumber("A1", 10)
+        self.helper.writeNumber("A2", 6)
+        self.helper.writeNumber("A3", 4)
+        self.helper.writeNumber("A4", 3)
+        self.helper.writeNumber("A5", 2)
+        #A2
+        tree = parser.parse("MOD(A1,A2)")
+        self.assertEqual("OperationNode", self.visitor_fixed.visit(tree).__class__.__name__)
+        self.assertEqual("MOD", self.visitor_fixed.visit(tree).operation)
+        self.assertEqual(4, self.visitor_volatile.visit(tree).value)
+        #A3
+        tree = parser.parse("MOD(A1,A3)")
+        self.assertEqual("OperationNode", self.visitor_fixed.visit(tree).__class__.__name__)
+        self.assertEqual("MOD", self.visitor_fixed.visit(tree).operation)
+        self.assertEqual(2, self.visitor_volatile.visit(tree).value)
+        #A4
+        tree = parser.parse("MOD(A1,A4)")
+        self.assertEqual("OperationNode", self.visitor_fixed.visit(tree).__class__.__name__)
+        self.assertEqual("MOD", self.visitor_fixed.visit(tree).operation)
+        self.assertEqual(1, self.visitor_volatile.visit(tree).value)
+        #A5
+        tree = parser.parse("MOD(A1,A5)")
+        self.assertEqual("OperationNode", self.visitor_fixed.visit(tree).__class__.__name__)
+        self.assertEqual("MOD", self.visitor_fixed.visit(tree).operation)
+        self.assertEqual(0, self.visitor_volatile.visit(tree).value)
+        #INT
+        tree = parser.parse("MOD(A1,9)")
+        self.assertEqual("OperationNode", self.visitor_fixed.visit(tree).__class__.__name__)
+        self.assertEqual("MOD", self.visitor_fixed.visit(tree).operation)
+        self.assertEqual(1, self.visitor_volatile.visit(tree).value)
+
+
     def test_sum_of_visit_with_ref(self):
         self.helper.writeNumber("A1", 14)
         tree = parser.parse("A1*2")

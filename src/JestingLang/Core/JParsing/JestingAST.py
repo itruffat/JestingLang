@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-operations = {"+","-","*","/","&","=",'>','NOT','AND','OR', "u-"}
+operations = {"+","-","*","/","&","=",'>','NOT','AND','OR', "u-", 'MOD'}
 
 class Node(ABC):
     def __init__(self):
