@@ -2,7 +2,7 @@ import ply.yacc as yacc
 import ply.lex as lex
 from JestingLang.Core.JParsing.JestingAST import *
 from JestingLang.JestingScript.JParsing.JestingScriptAST import *
-
+from JestingLang.Misc.JLogic.LogicFunctions import address_regex_str
 
 def subtokenIsType(tokens, position, checkType):
     return tokens.slice[position].type == checkType
@@ -98,9 +98,9 @@ class LexerParser:
         t_MOD = r'MOD'
 
         def t_CELL_ADDRESS(t):
-            r'(?P<path>(?P<workbook>\[[a-zA-Z0-9\.\(\)]+\])?(?P<worksheet>[a-zA-Z][a-zA-Z0-9]*!))?\$?(?P<initial>([a-z]+|[A-Z]+)\$?[0-9]+)(?P<final>:\$?[a-zA-Z]+\$?[0-9]+)?'
             return t
 
+        t_CELL_ADDRESS.__doc__ = address_regex_str  # This needs to be shared from another file
 
         def t_NUMBER(t):
             r'\d+'

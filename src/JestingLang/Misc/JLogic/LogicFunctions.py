@@ -1,12 +1,20 @@
 import re
 
-address_regex =  r'(?P<path>(?P<workbook>\[[a-zA-Z0-9\.\(\)]+\])?(?P<worksheet>[a-zA-Z][a-zA-Z0-9]*!))?\$?(?P<initial>([a-z]+|[A-Z]+)\$?[0-9]+)(?P<final>:\$?[a-zA-Z]+\$?[0-9]+)?'
+address_regex_str =  r'(?P<path>(?P<workbook>\[[a-zA-Z0-9\.\(\)]+\])?(?P<worksheet>[a-zA-Z][a-zA-Z0-9]*!))?\$?(?P<initial>([a-z]+|[A-Z]+)\$?[0-9]+)(?P<final>:\$?[a-zA-Z]+\$?[0-9]+)?'
 
 digit = re.compile(r' *-?\d+ *')
-address = re.compile(address_regex)
+address = re.compile(address_regex_str)
 boolean_true = re.compile(r'TRUE|true')
 boolean_false = re.compile(r'FALSE|false')
 #numeric = re.compile(r'[0-9]+')
+
+def extract_address(t):
+    match = address.match(t)
+    if match is None:
+        return None, None, None, None, None
+    else:
+        matches = match.groupdict()
+        return matches['path'], matches['workbook'], matches['worksheet'], matches['initial'], matches['final']
 
 def label_data(data):
     sdata = str(data)

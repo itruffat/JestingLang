@@ -1,22 +1,14 @@
 from JestingLang.Core.JDereferencer.CachedDereferencer import CachedDereferencer
 from JestingLang.Core.JParsing.JestingAST import Node, StrValueNode, EmptyValueNode
-from JestingLang.Misc.JLogic.LogicFunctions import address as address_regex
+from JestingLang.Misc.JLogic.LogicFunctions import extract_address
 
 
 class CachedCellDereferencer(CachedDereferencer):
     """Same as CachedDeferencer but parsing the key to emulate workbooks, worksheets and cells.
     """
 
-    def _parse(self, name):
-        match = address_regex.match(name)
-        if match is None:
-            return None, None, None, None, None
-        else:
-            matches = match.groupdict()
-            return matches['path'], matches['workbook'], matches['worksheet'], matches['initial'], matches['final']
-
     def resolveReference(self, name):
-        _, book, sheet, cell, _ = self._parse(name)
+        _, book, sheet, cell, _ = extract_address(name)
         if (book not in self.cache.keys() or self.cache[book] is None) or \
             (sheet not in self.cache[book].keys() or self.cache[book][sheet] is None) or \
             (cell not in self.cache[book][sheet].keys() or self.cache[book][sheet][cell] is None):
@@ -26,7 +18,7 @@ class CachedCellDereferencer(CachedDereferencer):
     def write(self, key, formula, value=None):
         assert(issubclass(type(formula), Node))
         assert(value is None or issubclass(type(value), Node))
-        _, book, sheet, cell, _ = self._parse(key)
+        _, book, sheet, cell, _ = extract_address(key)
         self.write_cell(book,sheet,cell, formula, value)
 
     def write_cell(self, book, sheet, cell, formula, value=None, update_which=0):

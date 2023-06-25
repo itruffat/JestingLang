@@ -1,27 +1,27 @@
 ## INTRODUCTION
 
-***Jesting Language*** is a minimalist functional language, 
-intended to be compatible with Spreedsheet syntax found 
-in Microsoft's Excel, Libre Office's Calc or Google's 
-Sheets. As such, it can be considered a subset of the 
-lenguages used in those programs, but lacking many of the 
-rich syntax and functions they use.
+***Jesting Language*** is a minimalist functional-like 
+language, intended to be compatible with the standard 
+syntax used in most Spreadsheet applications, such as 
+**Microsoft's Excel**, 
+**Libre Office's Calc** and 
+**Google's Sheets**. 
+It can be considered a subset of the core languages used 
+in those programs, but lacking many of the rich syntax and 
+functions they use.
 
-It was created for the JESTING tool, a Python program 
-that emulates behaviour similar to those Spreedsheet 
-Applications using Curses.
-
-I happened to find myself working with esoteric uses for the 
-spreedsheet syntax, and it turns out that if TDD was in order,
-the most entertaining way to do it was with python.
+It was created for the JESTING APP, a Python-based 
+Spreadsheet program used to emulate behaviours similar 
+to those Spreadsheet Applications. Mostly to test 
+esoteric programs created for those applications.
 
 ## Syntax and AST
 
 The Jesting Lang syntax follows the standard used by most
-spreedsheets programs, allowing simple operations (+, -, *
+spreadsheets programs, allowing simple operations (+, -, *
 , /, =, & ), the **IF token** (to allow branching), the use of 
 indirections to other cells such as A2 (key behaviour or
-spreedhseets) and the **INDIRECT token** (to give more power to 
+spreadhseets) and the **INDIRECT token** (to give more power to 
 those indirections)
 
 For example
@@ -77,11 +77,14 @@ when visiting a tree. A fixed tree does the opposite, and
 returns a Tree without exploring any volatile Node. 
 
 
-## Multiline Script Parser/Lexer
+## JestingScript
 
 A small variation has been made for the parser/lexer so
-that an additional syntax instructions are understood. 
-This represents common things done in spreedsheet APPs,
+that more than one line can be provided and additional 
+syntax instructions are understood. This means the 
+language is no longer functional (since it now has side
+effects), but it becomes more usable as it represents 
+common things done in other spreadsheet APPs,
 such as giving a cell a value, giving a cell a formula,
 changing 'current sheet/page/cells', printing a value,
 making a comment and making "time progress".

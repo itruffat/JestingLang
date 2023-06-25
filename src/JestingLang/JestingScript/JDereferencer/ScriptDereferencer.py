@@ -1,6 +1,6 @@
 from JestingLang.Core.JParsing.JestingAST import EmptyValueNode
 from JestingLang.JestingScript.JDereferencer.AbstractScriptDereferencer import AbstractScriptDereferencer
-from JestingLang.Misc.JLogic.LogicFunctions import address as address_regex
+from JestingLang.Misc.JLogic.LogicFunctions import extract_address
 
 
 class SDException(BaseException):
@@ -32,17 +32,16 @@ class ScriptDereferencer(AbstractScriptDereferencer):
         self.require_open = require_open
 
     def _parse(self, name):
-        match = address_regex.match(name)
-        if match is None:
+        path, book, sheet, cell, final = extract_address(name)
+        if cell is None:
             return None, None, None, None, None
         else:
-            matches = match.groupdict()
-            book = matches['workbook'] if matches['workbook'] is not None else self.local_book
+            book = book if book is not None else self.local_book
             book = book if book is not None else self.default_book
-            sheet = matches['worksheet'] if matches['worksheet'] is not None else self.local_sheet
+            sheet = sheet if sheet is not None else self.local_sheet
             sheet = sheet if sheet is not None else self.default_sheet
-            cell = matches['initial'] if matches['initial'] is not None else self.default_cell
-            return matches['path'], book, sheet, cell, matches['final']
+            cell = cell if cell is not None else self.default_cell
+            return path, book, sheet, cell, final
 
     def tick(self, visitor):
         new_cache = {}

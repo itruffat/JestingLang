@@ -51,7 +51,7 @@ class ContextfreeInterpreterVisitor(AbstractJestingVisitor):
             _else = node.children[2].accept(self)
             answer = IfNode(_if, _then, _else)
         else:
-            # This behaviour is not real since spreedsheets don't use short-circuit (for whatever reason)
+            # This behaviour is not real since spreadsheets don't use short-circuit (for whatever reason)
             if boolean(_if.value):
                 # if boolean(_if.value) and (self.resolveVolatile or not _then.volatile()):
                 _then = node.children[1].accept(self)
