@@ -2,6 +2,7 @@ import ply.yacc as yacc
 import ply.lex as lex
 from JestingLang.Core.JParsing.JestingAST import *
 from JestingLang.JestingScript.JParsing.JestingScriptAST import *
+from JestingLang.JestingScript.JFileLoader.ExternalFileLoader import ExternalFileLoader
 from JestingLang.Misc.JLogic.LogicFunctions import address_regex_str
 
 def subtokenIsType(tokens, position, checkType):
@@ -10,19 +11,26 @@ def subtokenIsType(tokens, position, checkType):
 
 class LexerParser:
 
-    def __init__(self, *, multilineScript = False):
+    def __init__(self, *, multilineScript = False,  external_file_loader = None):
 
         self.multilineScript = multilineScript
-        self.spreadsheet_function_set = ( 'MOD' , )
-        self.implemented_functions = ('IF', 'INDIRECT', 'NOT', 'AND', 'OR')
+        self.spreadsheet_function_set = {'MOD': 2}  # second value is amount of operands it receives
+        self.fixed_implementations = ('IF', 'INDIRECT',)
+        self.logic_functions = ('NOT', 'AND', 'OR',)
+        self.fixed_operations = ('PLUS', 'MINUS', 'TIMES',
+                                      'DIVIDE', 'EQUALS', 'BIGGER', 'AMPERSAND',)
+        self.indirect_fixed_operations = ('SMALLER',)
         self.tokens = (
                      'CELL_ADDRESS', 'NUMBER', 'BOOLEAN',
-                     'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'EQUALS', 'BIGGER', 'SMALLER',
-                     'LPAREN', 'RPAREN', 'AMPERSAND', 'STRING', 'COMMA'
-                 ) + self.implemented_functions + self.spreadsheet_function_set + ('TEXT',)
+                     'LPAREN', 'RPAREN', 'STRING', 'COMMA'
+                 ) + self.fixed_implementations + self.logic_functions \
+                      + self.indirect_fixed_operations + self.fixed_operations + ('TEXT',)
         if self.multilineScript:
-            self.tokens += ('ASSIGN_FORMULA', 'ASSIGN_VALUE', 'UNASSIGN', 'TICK',
-                            'SETDEFAULTS', 'PRINT', 'PRINTALL', 'NEWLINE', 'COMMENT','OPEN', 'CLOSE', )
+            self.tokens += ('ASSIGN_FORMULA', 'ASSIGN_VALUE', 'UNASSIGN', 'ASSIGN_ALIAS', 'TICK',
+                            'SETDEFAULTS', 'PRINT', 'NEWLINE', 'COMMENT',
+                            'OPEN', 'CLOSE', 'INCLUDE_EXTERNAL_FILE', )
+            self.external_file_loader = \
+                external_file_loader if external_file_loader is not None else ExternalFileLoader()
         self.setup_tokens()
         self.lexer = self.jesting_lexer()
         self.parser = self.jesting_parser()
@@ -55,8 +63,9 @@ class LexerParser:
         # ~~~ START OF MULTILINE
 
         if self.multilineScript:
+            t_INCLUDE_EXTERNAL_FILE = r'\#INCLUDE'
+            t_ASSIGN_ALIAS=r'\?'
             t_ASSIGN_FORMULA = r'@='
-            #t_ASSIGN_VALUE = r'@\s[^\n]+'
             def t_ASSIGN_VALUE(t):
                 r'@\s[^\n]+'
                 t.value = t.value[2:]
@@ -64,19 +73,15 @@ class LexerParser:
             t_UNASSIGN = r'@'
             t_TICK = r'~+'
             t_SETDEFAULTS=r':'
-            t_PRINTALL=r'!!'
             t_PRINT=r'!'
-            #t_COMMENT=r'//[^\n]*'
             def t_COMMENT(t):
                 r'//[^\n]*'
                 t.value = t.value[2:]
                 return t
-            #t_OPEN=r'}[^\n]*'
             def t_OPEN(t):
                 r'}[^\n]*'
                 t.value = f"[{t.value[1:].strip()}]"
                 return t
-            #t_CLOSE=r'{[^\n]*'
             def t_CLOSE(t):
                 r'{[^\n]*'
                 t.value = f"[{t.value[1:].strip()}]"
@@ -95,7 +100,6 @@ class LexerParser:
         t_RPAREN = r'\)'
         t_AMPERSAND = r'&'
         t_COMMA = r'\,'
-        t_MOD = r'MOD'
 
         def t_CELL_ADDRESS(t):
             return t
@@ -112,8 +116,8 @@ class LexerParser:
             return t
 
         def t_TEXT(t):
-            r'[a-zA-Z_][a-zA-Z_0-9]*'
-            if t.value in self.implemented_functions:
+            r'[a-zA-Z_\.][a-zA-Z_0-9\.]*'
+            if t.value in self.logic_functions + self.fixed_implementations:
                 t.type = t.value
             if t.value in ('TRUE', 'FALSE'):
                 t.type = 'BOOLEAN'
@@ -175,63 +179,78 @@ class LexerParser:
                     if t[1] is None:
                         t[0] = None
                     else:
-                        t[0] = ScriptNode(t[1])
+                        if type(t[1]) is ScriptNode:
+                            t[0] = t[1]
+                        else:
+                            t[0] = ScriptNode(t[1])
                 elif len(t) == 4:
                     if t[3] is None:
                         t[0] = t[1]
                     elif t[1] is None:
-                        t[0] = ScriptNode(t[3])
+                        if type(t[3]) is ScriptNode:
+                            t[0] = t[3]
+                        else:
+                            t[0] = ScriptNode(t[3])
                     else:
-                        t[0] = t[1].addChild(t[3])
+                        if type(t[3]) is ScriptNode:
+                            t[0] = t[1]
+                            for child in t[3].children:
+                                t[0] = t[0].addChild(child)
+                        else:
+                            t[0] = t[1].addChild(t[3])
                 return t[0]
 
             def p_line(t):
                 '''line :
                         | COMMENT
                         | TICK
-                        | PRINTALL
-                        | PRINT CELL_ADDRESS
                         | OPEN
                         | CLOSE
+                        | PRINT PRINT
+                        | PRINT CELL_ADDRESS
                         | SETDEFAULTS CELL_ADDRESS
                         | CELL_ADDRESS UNASSIGN
                         | CELL_ADDRESS ASSIGN_VALUE
+                        | INCLUDE_EXTERNAL_FILE TEXT
                         | PRINT EQUALS CELL_ADDRESS
                         | CELL_ADDRESS ASSIGN_FORMULA statement
+                        | TEXT ASSIGN_ALIAS CELL_ADDRESS
                 '''
 
+                a = 1
                 if len(t) == 2:
 
-                    if subtokenIsType(t,1,"PRINTALL"):
-                    #if t[1] == "!!":
-                        t[0] = PrintValueNode(print_all=True)
-                    elif subtokenIsType(t, 1, "TICK"):
-                    #elif t[1] == "~":
+                    if subtokenIsType(t, 1, "TICK"):
                         t[0] = TickNode(len(t[1]))
                     elif subtokenIsType(t, 1, "OPEN"):
-                    #elif t[1][0] == "}":
                         t[0] = OpenCloseFileNode(t[1], do_open=True)
                     elif subtokenIsType(t, 1, "CLOSE"):
-                    #elif t[1][0] == "{":
                         t[0] = OpenCloseFileNode(t[1], do_open=False)
                     else:
                         t[0] = None
 
                 elif len(t) == 3:
                     if subtokenIsType(t,1,"SETDEFAULTS"):
-                    #if t[1] == ":":
                         t[0] = SetDefaultsNode(t[2])
                     elif subtokenIsType(t, 1, "PRINT"):
-                    #elif t[1] == "!":
-                        t[0] = PrintValueNode(cell=t[2], print_value=True)
+                        if subtokenIsType(t, 2, "PRINT"):
+                            t[0] = PrintValueNode(print_all=True)
+                        else:
+                            t[0] = PrintValueNode(cell=t[2], print_value=True)
                     elif subtokenIsType(t, 2, "UNASSIGN"):
-                    #elif t[2] == "@":
                         t[0] = AssignNode(t[1], EmptyValueNode())
-                    else:
+                    elif subtokenIsType(t, 2, "ASSIGN_VALUE"):
                         t[0] = AssignNode(t[1], RawInputNode(t[2]))
+                    elif subtokenIsType(t, 1, "INCLUDE_EXTERNAL_FILE"):
+                        t[0] = self.parser.parse(self.external_file_loader.load(t[2]))
+                        self.external_file_loader.unload(t[2])
+                    else:
+                        t[0] = None
 
                 elif len(t) == 4:
-                    if subtokenIsType(t,2,"EQUALS"):
+                    if subtokenIsType(t,2,"ASSIGN_ALIAS"):
+                        pass #todo finish
+                    elif subtokenIsType(t, 1, "PRINT"):
                         t[0] = PrintValueNode(cell=t[3], print_value=False)
                     else:
                         t[0] = AssignNode(t[1], t[3])
@@ -248,38 +267,38 @@ class LexerParser:
             t[0] = t[1]
             return t[0]
 
+        def p_statement_list(t):
+            '''statement_list    : statement
+                            | statement COMMA statement_list
+            '''
+            t[0] = [t[1]]
+            if len(t) == 4:
+                t[0] += t[3]
+            return t[0]
+
         def p_callable_opereation(t):
             '''callable_operation   : IF LPAREN statement COMMA  statement COMMA statement RPAREN
                                     | NOT LPAREN statement RPAREN
                                     | AND LPAREN statement COMMA statement RPAREN
                                     | OR LPAREN statement COMMA statement RPAREN
                                     | INDIRECT LPAREN statement RPAREN
-                                    | TEXT LPAREN statement RPAREN
-                                    | TEXT LPAREN statement COMMA statement RPAREN
-                                    | TEXT LPAREN statement COMMA statement COMMA statement RPAREN '''
+                                    | TEXT LPAREN statement_list RPAREN'''
             if subtokenIsType(t, 1, "NOT"):
-            #if t[1] == 'NOT':
                 t[0] = OperationNode(t[1], {0: t[3]})
             if subtokenIsType(t, 1, "AND") or subtokenIsType(t, 1, "OR"):
-            #if t[1] in ('AND', 'OR'):
                 t[0] = OperationNode(t[1], {0: t[3], 1: t[5]})
             if subtokenIsType(t, 1, "IF"):
-            #if t[1] == 'IF':
                 t[0] = IfNode(t[3], t[5], t[7])
             if subtokenIsType(t, 1, "INDIRECT"):
-            #if t[1] == 'INDIRECT':
                 t[0] = IndirectNode(t[3])
             if subtokenIsType(t, 1, "TEXT"):
-                if t[1] not in self.spreadsheet_function_set:
+                if t[1] not in self.spreadsheet_function_set.keys():
                     raise Exception("unknown text")
-                if len(t) == 5:
-                    t[0] = OperationNode(t[1], {0: t[3]})
-                elif len(t) == 7:
-                    t[0] = OperationNode(t[1], {0: t[3], 1: t[5]})
-                elif len(t) == 9:
-                    t[0] = OperationNode(t[1], {0: t[3], 1: t[5], 2: t[7]})
                 else:
-                    raise Exception("unknown call")
+                    operands = self.spreadsheet_function_set[t[1]]
+                    children =  {k:v for k,v in enumerate(t[3])}
+                    assert(len(children) == operands)
+                    t[0] = OperationNode(t[1], children)
             return t[0]
 
 

@@ -51,7 +51,8 @@ class MultilineLexerTest(TestCase):
              ('PRINT', '!', 2, 20),
              ('CELL_ADDRESS', 'a1', 2, 22),
              ('NEWLINE', '\n', 2, 24),
-             ('PRINTALL', '!!', 3, 26),
+             ('PRINT', '!', 3, 26),
+             ('PRINT', '!', 3, 27),
              ('NEWLINE', '\n', 3, 28),
              ('TICK', '~', 4, 29),
              ('NEWLINE', '\n', 4, 30),
@@ -68,4 +69,9 @@ class MultilineLexerTest(TestCase):
              ('UNASSIGN', '@', 9, 65),
              ('NEWLINE', '\n', 9, 66)]
         new_ts = squeeze_lexer("//THIS IS A COMMENT\n! a1\n !!\n~\n~~~~\n} test1 \n{ test2 \n : a1 \n A1 @\n")
+        self.assertEqual(expected_ts, new_ts)
+
+    def test_include(self):
+        expected_ts = [('INCLUDE_EXTERNAL_FILE', '#INCLUDE', 1, 0), ('TEXT', '_test.xml', 1, 9)]
+        new_ts = squeeze_lexer("#INCLUDE _test.xml")
         self.assertEqual(expected_ts, new_ts)

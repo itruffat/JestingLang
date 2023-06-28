@@ -3,24 +3,21 @@ from JestingLang.Core.JVisitors.ContextBoundInterpreterVisitor import ContextBou
 from JestingLang.Misc.JLogic.LogicFunctions import label_data
 from JestingLang.Core.JParsing.JestingAST import EmptyValueNode
 from JestingLang.JestingScript.JParsing.JestingScriptAST import RawInputNode
-from JestingLang.JestingScript.JDereferencer.AbstractScriptDereferencer import AbstractScriptDereferencer
+from JestingLang.JestingScript.JScriptManager.AbstractScriptManager import AbstractScriptManager
+from JestingLang.Core.JDereferencer.AbstractDereferencer import AbstractDereferencer
 from sys import stdout
 
 class ScriptInterpreterVisitor(ContextBoundInterpreterVisitor):
 
-    def __init__(self, dereferencer: AbstractScriptDereferencer, resolveVolatile, insertionUpdate= True, output = None):
-
-        try:
-            for required_call in ['tick', 'write_formula', 'write_value', 'read', 'read_all',
-                              'set_default', 'open_file', 'close_file']:
-                assert(required_call in dir(dereferencer))
-
-        except AssertionError as e:
-            print("INVALID dereferencer FOR SCRIPT INTERPRETER")
-            raise e
+    def __init__(self,
+                 dereferencer: AbstractDereferencer,
+                 resolveVolatile,
+                 scriptManager: AbstractScriptManager = None,
+                 insertionUpdate= True,
+                 output = None):
 
         super().__init__(dereferencer, resolveVolatile)
-        self.scriptManager = dereferencer
+        self.scriptManager = scriptManager if scriptManager is not None else dereferencer
         self.insertionUpdate = insertionUpdate
         self.default_book = None
         self.default_sheet = None
@@ -43,7 +40,6 @@ class ScriptInterpreterVisitor(ContextBoundInterpreterVisitor):
     def visitAssign(self, node):
         cell = node.target
         self.scriptManager.set_local_defaults(cell)
-        #cell = node.children[0].accept(self)
         if type(node.children[0]) is RawInputNode:
             data = node.children[0].accept(self)
             self.scriptManager.write_formula(cell, EmptyValueNode())
@@ -64,11 +60,11 @@ class ScriptInterpreterVisitor(ContextBoundInterpreterVisitor):
         if node.print_all:
             self.output.write(self.scriptManager.read_all())
         else:
-                cell = node.children[0]
-                if node.print_value:
-                    self.output.write(str(self.scriptManager.read(cell, True)))
-                else:
-                    self.output.write(str(self.scriptManager.read(cell, False)))
+            cell = node.children[0]
+            if node.print_value:
+                self.output.write(str(self.scriptManager.read(cell, True)))
+            else:
+                self.output.write(str(self.scriptManager.read(cell, False)))
         self.output.write("\n")
 
     def visitOpenCloseFile(self, node):

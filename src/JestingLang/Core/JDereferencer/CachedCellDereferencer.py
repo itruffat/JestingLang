@@ -7,8 +7,11 @@ class CachedCellDereferencer(CachedDereferencer):
     """Same as CachedDeferencer but parsing the key to emulate workbooks, worksheets and cells.
     """
 
+    def _parse(self, name):
+        return extract_address(name)
+
     def resolveReference(self, name):
-        _, book, sheet, cell, _ = extract_address(name)
+        _, book, sheet, cell, _ = self._parse(name)
         if (book not in self.cache.keys() or self.cache[book] is None) or \
             (sheet not in self.cache[book].keys() or self.cache[book][sheet] is None) or \
             (cell not in self.cache[book][sheet].keys() or self.cache[book][sheet][cell] is None):

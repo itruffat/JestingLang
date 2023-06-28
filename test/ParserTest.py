@@ -5,7 +5,7 @@ from unittest import TestCase
 parser = LexerParser().parser
 
 
-class parserTest(TestCase):
+class ParserTest(TestCase):
 
     def test_reference(self):
         answer = parser.parse("A1")

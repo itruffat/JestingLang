@@ -78,7 +78,7 @@ class ScriptInterpreterTest(TestCase):
         tree= parser.parse(code)
         self.visitor.visit(tree)
         self.assertEqual(0, len(self.dereferencer.open_files))
-        self.assertEqual(12, self.memory['[test1]']['sheet1!']['A1'].value)
+        self.assertEqual(12, self.cache['[test1]']['sheet1!']['A1'].value)
 
     def test_different_writes(self):
 
@@ -93,11 +93,11 @@ class ScriptInterpreterTest(TestCase):
 
         tree= parser.parse(code)
         self.visitor.visit(tree)
-        self.assertEqual(12, self.memory['[test1]']['sheet1!']['A1'].value)
-        self.assertEqual("test", self.memory['[test1]']['sheet1!']['A2'].value)
-        self.assertEqual(13, self.memory['[test1]']['sheet1!']['A3'].value)
-        self.assertEqual("= 12+1", self.memory['[test1]']['sheet1!']['A4'].value)
-        self.assertEqual("13", self.memory['[test1]']['sheet1!']['A5'].value)
+        self.assertEqual(12, self.cache['[test1]']['sheet1!']['A1'].value)
+        self.assertEqual("test", self.cache['[test1]']['sheet1!']['A2'].value)
+        self.assertEqual(13, self.cache['[test1]']['sheet1!']['A3'].value)
+        self.assertEqual("= 12+1", self.cache['[test1]']['sheet1!']['A4'].value)
+        self.assertEqual("13", self.cache['[test1]']['sheet1!']['A5'].value)
 
     def test_ref(self):
 
@@ -115,10 +115,10 @@ class ScriptInterpreterTest(TestCase):
 
         tree= parser.parse(code)
         self.visitor.visit(tree)
-        self.assertEqual(12, self.memory['[test1]']['sheet1!']['A1'].value)
-        self.assertEqual(14, self.memory['[test1]']['sheet1!']['A2'].value)
-        self.assertEqual(3, self.memory['[test1]']['sheet1!']['A3'].value)
-        self.assertEqual(1, self.memory['[test1]']['sheet1!']['A4'].value)
+        self.assertEqual(12, self.cache['[test1]']['sheet1!']['A1'].value)
+        self.assertEqual(14, self.cache['[test1]']['sheet1!']['A2'].value)
+        self.assertEqual(3, self.cache['[test1]']['sheet1!']['A3'].value)
+        self.assertEqual(1, self.cache['[test1]']['sheet1!']['A4'].value)
 
     def test_self_ref_and_slow_visitor(self):
         code = '\n'.join([
@@ -161,25 +161,16 @@ class ScriptInterpreterTest(TestCase):
                 "[test1]sheet1!A1 @= A1 + A2 + 1",
                 "[test1]sheet1!A2 @ 3",
                 "~",
-                "{ test1"])
+                "[test1]sheet1!A3 @= A1 + A2 + 1",
+                "{ test1"
+                ""])
 
         tree = parser.parse(code)
 
-        self.visitor.visit(tree)
-        self.assertEqual(5, self.cache['[test1]']['sheet1!']['A1'].value)
+        self.slow_visitor.visit(tree)
+        self.assertEqual(4, self.cache['[test1]']['sheet1!']['A1'].value)
         self.assertEqual(3, self.cache['[test1]']['sheet1!']['A2'].value)
+        self.assertEqual(None, self.cache['[test1]']['sheet1!']['A3'].value)
 
-    def test_module(self):
-            code = '\n'.join([
-                "} test1",
-                "// WITH PING",
-                "[test1]sheet1!A1 @= A1 + A2 + 1",
-                "[test1]sheet1!A2 @ 3",
-                "~",
-                "{ test1"])
-
-            tree = parser.parse(code)
-
-            self.visitor.visit(tree)
-            self.assertEqual(5, self.cache['[test1]']['sheet1!']['A1'].value)
-            self.assertEqual(3, self.cache['[test1]']['sheet1!']['A2'].value)
+if __name__ == "__main__":
+    print(40)

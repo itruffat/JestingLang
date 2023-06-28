@@ -1,6 +1,11 @@
 import re
 
-address_regex_str =  r'(?P<path>(?P<workbook>\[[a-zA-Z0-9\.\(\)]+\])?(?P<worksheet>[a-zA-Z][a-zA-Z0-9]*!))?\$?(?P<initial>([a-z]+|[A-Z]+)\$?[0-9]+)(?P<final>:\$?[a-zA-Z]+\$?[0-9]+)?'
+b_rgx = r'\[[a-zA-Z0-9\.\(\)]+\]'  # book
+s_rgx = r'[a-zA-Z][a-zA-Z0-9]*!'  # sheet
+c_rgx = r'\$?([a-z][a-z]?[a-z]?|[A-Z][A-Z]?[A-Z]?)\$?[1-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?'  # cell
+# Regex with excel limits'
+c_rgx_xl = r'\$?([x-zX-Z][a-zA-Z]?|[a-wA-W][a-zA-Z]?[a-zA-Z]?|[xX]([a-eA-E][a-zA-Z]|[fF][a-dA-D]))\$?[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?'  # cell
+address_regex_str = fr'(?P<path>(?P<workbook>{b_rgx})?(?P<worksheet>{s_rgx}))?(?P<initial>{c_rgx})(?P<final>:{c_rgx})?'
 
 digit = re.compile(r' *-?\d+ *')
 address = re.compile(address_regex_str)

@@ -1,5 +1,6 @@
 from JestingLang.Core.JParsing.JestingAST import EmptyValueNode
-from JestingLang.JestingScript.JDereferencer.AbstractScriptDereferencer import AbstractScriptDereferencer
+from JestingLang.Core.JDereferencer.CachedCellDereferencer import CachedCellDereferencer
+from JestingLang.JestingScript.JScriptManager.AbstractScriptManager import AbstractScriptManager
 from JestingLang.Misc.JLogic.LogicFunctions import extract_address
 
 
@@ -17,7 +18,7 @@ class SDWritingUnopenedException(SDException):
 class SDClosingUnopenedException(SDException):
     pass
 
-class ScriptDereferencer(AbstractScriptDereferencer):
+class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
     """
     """
 
@@ -56,6 +57,7 @@ class ScriptDereferencer(AbstractScriptDereferencer):
                     else:
                         if book in self.cache.keys() and sheet in self.cache[book].keys():
                             new_cache[book][sheet][cell] = self.cache[book][sheet].get(cell, EmptyValueNode())
+
         self._unset_local_defaults() # Remove the local
         keys = list(self.cache.keys())
         for k in keys:
