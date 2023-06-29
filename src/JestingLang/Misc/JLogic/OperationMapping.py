@@ -70,19 +70,36 @@ def operationBigger(variables):
 def operationNot(variables):
     return [], not(variables[0]), "BOOL"
 
+# operations = {
+#                 "+": operationPlus,
+#                 "-": operationMinus,
+#                 "u-": operationMinus,
+#                 "*": operationTimes,
+#                 "/": operationDivide,
+#                 "&": operationConcat,
+#                 "=": operationEquals,
+#                 '>': operationBigger,
+#                 'NOT': operationNot,
+#                 'AND': operationAnd,
+#                 'OR': operationOr,
+#                 'MOD': operationModulo,
+# }
+
 operations = {
-                "+": operationPlus,
-                "-": operationMinus,
-                "u-": operationMinus,
-                "*": operationTimes,
-                "/": operationDivide,
-                "&": operationConcat,
-                "=": operationEquals,
-                '>': operationBigger,
+                "PLUS": operationPlus,
+                "MINUS": operationMinus,
+                "NEGATE": operationMinus,
+                "TIMES": operationTimes,
+                "DIVIDE": operationDivide,
+                "AMPERSAND": operationConcat,
+                "EQUALS": operationEquals,
+                'BIGGER': operationBigger,
                 'NOT': operationNot,
                 'AND': operationAnd,
                 'OR': operationOr,
                 'MOD': operationModulo,
 }
+
+('PLUS', 'MINUS', 'TIMES','DIVIDE', 'EQUALS', 'BIGGER', 'AMPERSAND',)
 
 assert(astOperations == set(operations.keys()))

@@ -13,7 +13,7 @@ class ScriptInterpreterVisitor(ContextBoundInterpreterVisitor):
                  dereferencer: AbstractDereferencer,
                  resolveVolatile,
                  scriptManager: AbstractScriptManager = None,
-                 insertionUpdate= True,
+                 insertionUpdate = True,
                  output = None):
 
         super().__init__(dereferencer, resolveVolatile)
@@ -31,6 +31,9 @@ class ScriptInterpreterVisitor(ContextBoundInterpreterVisitor):
     def visitTick(self, node):
         for _ in range(node.ticks):
             self.scriptManager.tick(self)
+
+    def visitAlias(self, node):
+        self.scriptManager.make_alias(node.target, node.source)
 
     def visitRawInput(self, node):
         data = node.value
@@ -53,7 +56,7 @@ class ScriptInterpreterVisitor(ContextBoundInterpreterVisitor):
                 self.scriptManager.write_value(cell, EmptyValueNode())
 
     def visitSetDefaults(self, node):
-        cell = node.children[0].accept(self)
+        cell = node.reference
         self.scriptManager.set_default(cell)
 
     def visitPrintValue(self, node):

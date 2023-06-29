@@ -2,10 +2,21 @@ from JestingLang.Misc.JTesting.DereferencerHelper import DereferencerHelper
 from unittest import TestCase
 from JestingLang.LexerParser import LexerParser
 from JestingLang.JestingScript.JDereferencer.ScriptDereferencer import (ScriptDereferencer, SDClosingUnopenedException,
-                                                                        SDWritingUnopenedException, SDOpenFileException)
+                                                                        SDWritingUnopenedException, SDOpenFileException,
+                                                                        SDCantResolveAliasException)
 from JestingLang.JestingScript.JVisitors.ScriptInterpreterVisitor import ScriptInterpreterVisitor
+from JestingLang.Misc.JTesting.NonFileExternalFileLoader import NonFileExternalFileLoader
 
-lexerParser = LexerParser(multilineScript=True)
+
+test_loader = \
+    NonFileExternalFileLoader(
+        {
+            "aliasA2": "TEST_NAME_ALIASED ? A2"
+        }
+    )
+
+
+lexerParser = LexerParser(multilineScript=True, external_file_loader=test_loader)
 parser = lexerParser.parser
 
 
@@ -171,6 +182,66 @@ class ScriptInterpreterTest(TestCase):
         self.assertEqual(4, self.cache['[test1]']['sheet1!']['A1'].value)
         self.assertEqual(3, self.cache['[test1]']['sheet1!']['A2'].value)
         self.assertEqual(None, self.cache['[test1]']['sheet1!']['A3'].value)
+
+    def test_aliases_with_error(self):
+        code = '\n'.join([
+                "} test1",
+                "SARASA ? A1",
+                "{ test1",
+                " "])
+
+        tree = parser.parse(code)
+
+        with self.assertRaises(SDCantResolveAliasException):
+            self.slow_visitor.visit(tree)
+
+    def test_aliases(self):
+        code = '\n'.join([
+            "} test1",
+            ": [test1]sheet1!A1",
+            "",
+            "TEST_NAME ? A2",
+            "TEST_NAME @ 2",
+            "",
+            "TEST_NAME ? A3",
+            "TEST_NAME @ 3",
+            "A4 @= TEST_NAME + 1 ",
+            "~",
+            "~",
+            "{ test1",
+            " "])
+
+        tree = parser.parse(code)
+        self.slow_visitor.visit(tree)
+
+        self.assertEqual(2, self.cache['[test1]']['sheet1!']['A2'].value)
+        self.assertEqual(3, self.cache['[test1]']['sheet1!']['A3'].value)
+        self.assertEqual(4, self.cache['[test1]']['sheet1!']['A4'].value)
+
+        manager = self.slow_visitor.scriptManager
+        self.assertTrue('TEST_NAME' in manager.aliases.keys())
+        self.assertTrue((None, '[test1]', 'sheet1!', 'A2', None) in manager.reverse_aliases.keys())
+
+    def test_alias_and_include(self):
+        code = '\n'.join([
+            "} test1",
+            ": [test1]sheet1!A1",
+            "#INCLUDE aliasA2",
+            "TEST_NAME_ALIASED @ 10",
+            "A3 @= TEST_NAME_ALIASED + 1 ",
+            "~",
+            "{ test1",
+            " "])
+
+        tree = parser.parse(code)
+        self.slow_visitor.visit(tree)
+
+        self.assertEqual(10, self.cache['[test1]']['sheet1!']['A2'].value)
+        self.assertEqual(11, self.cache['[test1]']['sheet1!']['A3'].value)
+
+        manager = self.slow_visitor.scriptManager
+        self.assertTrue('TEST_NAME_ALIASED' in manager.aliases.keys())
+        self.assertTrue((None, '[test1]', 'sheet1!', 'A2', None) in manager.reverse_aliases.keys())
 
 if __name__ == "__main__":
     print(40)

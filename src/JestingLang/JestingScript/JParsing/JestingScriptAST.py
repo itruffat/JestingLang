@@ -49,10 +49,22 @@ class AssignNode(Node):
     def volatile(self):
         return False
 
+class AliasNode(Node):
+    def __init__(self, alias, cell):
+        super().__init__()
+        self.target = alias
+        self.source = cell
+
+    def accept(self, visitor):
+        return visitor.visitAlias(self)
+
+    def volatile(self):
+        return False
+
 class SetDefaultsNode(Node):
     def __init__(self, cell):
         super().__init__()
-        self.children = {0: cell}
+        self.reference = cell
 
     def accept(self, visitor):
         return visitor.visitSetDefaults(self)

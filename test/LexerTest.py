@@ -27,6 +27,12 @@ class LexerTest(TestCase):
         new_ts = squeeze_lexer("A+12")
         self.assertEqual(expected_ts, new_ts)
 
+    def test_plus_A1(self):
+        expected_ts = [("TEXT", "A1", 1, 0), ('PLUS', '+', 1, 2), ("NUMBER", 12, 1, 3)]
+        new_ts = squeeze_lexer("A1+12")
+        self.assertEqual(expected_ts, new_ts)
+
+
     def test_minus(self):
         expected_ts = [("TEXT", "A", 1, 0), ('MINUS', '-', 1, 1), ("NUMBER", 12, 1, 2)]
         new_ts = squeeze_lexer("A-12")

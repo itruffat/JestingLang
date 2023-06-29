@@ -7,8 +7,8 @@ c_rgx = r'\$?([a-z][a-z]?[a-z]?|[A-Z][A-Z]?[A-Z]?)\$?[1-9][0-9]?[0-9]?[0-9]?[0-9
 c_rgx_xl = r'\$?([x-zX-Z][a-zA-Z]?|[a-wA-W][a-zA-Z]?[a-zA-Z]?|[xX]([a-eA-E][a-zA-Z]|[fF][a-dA-D]))\$?[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?'  # cell
 address_regex_str = fr'(?P<path>(?P<workbook>{b_rgx})?(?P<worksheet>{s_rgx}))?(?P<initial>{c_rgx})(?P<final>:{c_rgx})?'
 
-digit = re.compile(r' *-?\d+ *')
 address = re.compile(address_regex_str)
+digit = re.compile(r' *-?\d+ *')
 boolean_true = re.compile(r'TRUE|true')
 boolean_false = re.compile(r'FALSE|false')
 #numeric = re.compile(r'[0-9]+')

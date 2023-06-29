@@ -39,3 +39,7 @@ class AbstractScriptManager(ABC):
     @abstractmethod
     def close_file(self, filename):
         pass
+
+    @abstractmethod
+    def make_alias(self, alias, cell):
+        pass

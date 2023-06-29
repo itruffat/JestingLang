@@ -3,17 +3,20 @@ import ply.lex as lex
 from JestingLang.Core.JParsing.JestingAST import *
 from JestingLang.JestingScript.JParsing.JestingScriptAST import *
 from JestingLang.JestingScript.JFileLoader.ExternalFileLoader import ExternalFileLoader
-from JestingLang.Misc.JLogic.LogicFunctions import address_regex_str
+from JestingLang.Misc.JLogic.LogicFunctions import address_regex_str, address
+
+def getTokenType(tokens, position):
+    return tokens.slice[position].type
 
 def subtokenIsType(tokens, position, checkType):
-    return tokens.slice[position].type == checkType
-
+    return getTokenType(tokens, position) == checkType
 
 class LexerParser:
 
-    def __init__(self, *, multilineScript = False,  external_file_loader = None):
+    def __init__(self, *, multilineScript = False, useCellToken=False, external_file_loader = None):
 
         self.multilineScript = multilineScript
+        self.useCellToken = useCellToken
         self.spreadsheet_function_set = {'MOD': 2}  # second value is amount of operands it receives
         self.fixed_implementations = ('IF', 'INDIRECT',)
         self.logic_functions = ('NOT', 'AND', 'OR',)
@@ -101,10 +104,10 @@ class LexerParser:
         t_AMPERSAND = r'&'
         t_COMMA = r'\,'
 
-        def t_CELL_ADDRESS(t):
-            return t
-
-        t_CELL_ADDRESS.__doc__ = address_regex_str  # This needs to be shared from another file
+        if self.useCellToken:
+            def t_CELL_ADDRESS(t):
+                return t
+            t_CELL_ADDRESS.__doc__ = address_regex_str  # This needs to be shared from another file
 
         def t_NUMBER(t):
             r'\d+'
@@ -122,6 +125,9 @@ class LexerParser:
             if t.value in ('TRUE', 'FALSE'):
                 t.type = 'BOOLEAN'
             return t
+
+        if not self.useCellToken:
+            t_TEXT.__doc__ = r'[a-zA-Z_\.\[\]!][a-zA-Z_0-9\.\[\]!]*'
 
         def t_NEWLINE(t):
             r'\n[\n 	]*'
@@ -159,12 +165,18 @@ class LexerParser:
 
             def p_start(t):
                 '''start : lines
+                        | lines NEWLINE
                         | NEWLINE lines
+                        | NEWLINE lines NEWLINE
                 '''
 
                 if len(t) == 2:
                     t[0] = t[1]
+                elif len(t) == 3 and subtokenIsType(t, 1, "NEWLINE"):
+                    t[0] = t[2]
                 elif len(t) == 3:
+                    t[0] = t[1]
+                else:
                     t[0] = t[2]
                 if t[0] is None:
                     raise Exception("Empty program")
@@ -195,14 +207,13 @@ class LexerParser:
                         if type(t[3]) is ScriptNode:
                             t[0] = t[1]
                             for child in t[3].children:
-                                t[0] = t[0].addChild(child)
+                                t[0] = t[0].addChild(t[3].children[child])
                         else:
                             t[0] = t[1].addChild(t[3])
                 return t[0]
 
             def p_line(t):
-                '''line :
-                        | COMMENT
+                '''line : COMMENT
                         | TICK
                         | OPEN
                         | CLOSE
@@ -217,7 +228,6 @@ class LexerParser:
                         | TEXT ASSIGN_ALIAS CELL_ADDRESS
                 '''
 
-                a = 1
                 if len(t) == 2:
 
                     if subtokenIsType(t, 1, "TICK"):
@@ -242,20 +252,28 @@ class LexerParser:
                     elif subtokenIsType(t, 2, "ASSIGN_VALUE"):
                         t[0] = AssignNode(t[1], RawInputNode(t[2]))
                     elif subtokenIsType(t, 1, "INCLUDE_EXTERNAL_FILE"):
-                        t[0] = self.parser.parse(self.external_file_loader.load(t[2]))
+                        tmp_lexer = self.lexer.clone()  # Due to how ply work, we need a different lexer
+                        external_code = self.external_file_loader.load(t[2])
+                        t[0] = self.parser.parse(external_code, lexer=tmp_lexer)
                         self.external_file_loader.unload(t[2])
                     else:
                         t[0] = None
 
                 elif len(t) == 4:
                     if subtokenIsType(t,2,"ASSIGN_ALIAS"):
-                        pass #todo finish
+                        if not self.useCellToken:
+                            assert(address.match(t[1]) is None)
+                            assert(address.match(t[3]) is not None)
+                        t[0] = AliasNode(alias=t[1], cell=t[3])
                     elif subtokenIsType(t, 1, "PRINT"):
                         t[0] = PrintValueNode(cell=t[3], print_value=False)
                     else:
                         t[0] = AssignNode(t[1], t[3])
 
                 return t[0]
+
+            if not self.useCellToken:
+                p_line.__doc__ = p_line.__doc__.replace("CELL_ADDRESS", "TEXT")
 
         # ~~~ END OF MULTILINE
 
@@ -296,7 +314,7 @@ class LexerParser:
                     raise Exception("unknown text")
                 else:
                     operands = self.spreadsheet_function_set[t[1]]
-                    children =  {k:v for k,v in enumerate(t[3])}
+                    children = {k: v for k, v in enumerate(t[3])}
                     assert(len(children) == operands)
                     t[0] = OperationNode(t[1], children)
             return t[0]
@@ -321,26 +339,37 @@ class LexerParser:
                                 | statement BIGGER EQUALS statement
                                 | statement SMALLER EQUALS statement
                                 | MINUS statement %prec UMINUS '''
-            if t[1] == "-":
-                t[0] = OperationNode("u-", {0: t[2]})
-            elif t[2] in ['<', '>']:
-                if t[2] == '<' and t[3] == '>':
-                    equals = OperationNode('=', {0: t[1], 1: t[4]})
+            if subtokenIsType(t, 1, "MINUS"):
+            #if t[1] == "-":
+                #t[0] = OperationNode("u-", {0: t[2]})
+                t[0] = OperationNode("NEGATE", {0: t[2]})
+            #elif t[2] in ['<', '>']:
+            elif subtokenIsType(t, 2, "SMALLER") or subtokenIsType(t, 2, "BIGGER"):
+                #if t[2] == '<' and t[3] == '>':
+                if subtokenIsType(t, 2, "SMALLER") and subtokenIsType(t, 3, "BIGGER"):
+                    equals = OperationNode('EQUALS', {0: t[1], 1: t[4]})
+                    #equals = OperationNode('=', {0: t[1], 1: t[4]})
                     t[0] = OperationNode('NOT', {0: equals})
                 else:
-                    second = t[4] if t[3] == '=' else t[3]
-                    if t[2] == '>':
+                    second = t[4] if subtokenIsType(t, 3, "EQUALS") else t[3]
+                    #second = t[4] if t[3] == '=' else t[3]
+                    #if t[2] == '>':
+                    if subtokenIsType(t, 2, "BIGGER"):
                         bg, sm = (t[1], second)
                     else:
                         bg, sm = (second, t[1])  # IN CASE ITS SMALLER JUST REVERSE THE ORDER
-                    bigger = OperationNode('>', {0: bg, 1: sm})
-                    if t[3] == '=':
-                        equals = OperationNode('=', {0: bg, 1: sm})
+                    bigger = OperationNode('BIGGER', {0: bg, 1: sm})
+                    #bigger = OperationNode('>', {0: bg, 1: sm})
+                    #if t[3] == '=':
+                    if subtokenIsType(t, 3, "EQUALS"):
+                        equals = OperationNode('EQUALS', {0: bg, 1: sm})
+                        #equals = OperationNode('=', {0: bg, 1: sm})
                         t[0] = OperationNode('OR', {0: equals, 1: bigger})
                     else:
                         t[0] = bigger
             else:
-                t[0] = OperationNode(t[2], {0: t[1], 1: t[3]})
+                t[0] = OperationNode(getTokenType(t,2) , {0: t[1], 1: t[3]})
+                #t[0] = OperationNode(t[2], {0: t[1], 1: t[3]})
             return t[0]
 
 
@@ -355,33 +384,33 @@ class LexerParser:
             t[0] = StrValueNode(t[1])
             return t[0]
 
-
-        def p_parameter_ADDRESS(t):
-            '''parameter    : CELL_ADDRESS'''
-            t[0] = ReferenceValueNode(t[1])
-            return t[0]
-
-
         def p_parameter_BOOL(t):
             '''parameter    : BOOLEAN'''
             t[0] = BoolValueNode(t[1])
             return t[0]
 
+        def p_parameter_ADDRESS_OR_TEXT(t):
+            '''parameter    : address'''
+            t[0] = t[1]
+            return t[0]
 
-        def p_text_parameter_text(t):
-            '''statement     : TEXT'''
-            text = t[1]
-            text = text.upper()
-            text = text.replace(".", "_")
-            text = text if text != "error" else "_error"
-            if text in self.spreadsheet_function_set:
-                raise Exception(f"FUNCTION '{t[1]}' NOT IMPLEMENTED")
-            else:
+        def p_parameter_ADDRESS(t):
+            '''address    : CELL_ADDRESS'''
+            t[0] = ReferenceValueNode(t[1])
+            return t[0]
+
+        def p_parameter_TEXT(t):
+            '''address  : TEXT'''
+            if self.useCellToken:
                 raise Exception(f"'{t[1]}' is Unknown")
+            else:
+                t[0] = ReferenceValueNode(t[1])
+            return t[0]
 
 
         def p_error(t):
             print("Syntax error at '%s'" % t.value)
 
         parser = yacc.yacc(tabmodule="LexerParser_cachedParseTable", debug=False)
+
         return parser

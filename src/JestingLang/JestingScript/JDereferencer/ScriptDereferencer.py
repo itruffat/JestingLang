@@ -18,13 +18,18 @@ class SDWritingUnopenedException(SDException):
 class SDClosingUnopenedException(SDException):
     pass
 
+class SDCantResolveAliasException(SDException):
+    pass
+
 class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
     """
     """
 
     def __init__(self, memory = None, cache = None, require_open = True):
         super().__init__(memory, cache)
-        self.open_files = {}
+        self.open_files = set()
+        self.aliases = {}
+        self.reverse_aliases = {}
         self.default_book = None
         self.default_sheet = None
         self.default_cell = None
@@ -32,17 +37,20 @@ class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
         self.local_sheet = None
         self.require_open = require_open
 
-    def _parse(self, name):
-        path, book, sheet, cell, final = extract_address(name)
-        if cell is None:
-            return None, None, None, None, None
+    def _parse(self, _name, check_aliases = True):
+        if _name in self.aliases.keys() and check_aliases:
+            path, book, sheet, cell, final = self.aliases[_name]
         else:
-            book = book if book is not None else self.local_book
-            book = book if book is not None else self.default_book
-            sheet = sheet if sheet is not None else self.local_sheet
-            sheet = sheet if sheet is not None else self.default_sheet
-            cell = cell if cell is not None else self.default_cell
-            return path, book, sheet, cell, final
+            path, book, sheet, cell, final = extract_address(_name)
+            if cell is None:
+                path, book, sheet, cell, final = None, None, None, None, None
+            else:
+                book = book if book is not None else self.local_book
+                book = book if book is not None else self.default_book
+                sheet = sheet if sheet is not None else self.local_sheet
+                sheet = sheet if sheet is not None else self.default_sheet
+                cell = cell if cell is not None else self.default_cell
+        return path, book, sheet, cell, final
 
     def tick(self, visitor):
         new_cache = {}
@@ -58,7 +66,7 @@ class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
                         if book in self.cache.keys() and sheet in self.cache[book].keys():
                             new_cache[book][sheet][cell] = self.cache[book][sheet].get(cell, EmptyValueNode())
 
-        self._unset_local_defaults() # Remove the local
+        self._unset_local_defaults()  # Remove the local
         keys = list(self.cache.keys())
         for k in keys:
             del self.cache[k]
@@ -67,7 +75,7 @@ class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
 
     def parse_key(self, key, require_open):
         _, book, sheet, cell, _ = self._parse(key)
-        if require_open and book not in self.open_files.keys():
+        if require_open and book not in self.open_files:
             raise SDWritingUnopenedException(book)
         return book, sheet, cell
 
@@ -108,8 +116,8 @@ class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
         self.local_sheet = None
 
     def open_file(self, _filename):
-        if _filename not in self.open_files.keys():
-            self.open_files[_filename] = 0
+        if _filename not in self.open_files:
+            self.open_files.add(_filename)
             if _filename not in self.memory.keys():
                 self.memory[_filename] = {}
             if _filename not in self.cache.keys():
@@ -118,11 +126,25 @@ class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
             raise SDOpenFileException(_filename)
 
     def close_file(self, _filename):
-        if _filename in self.open_files.keys():
-            del self.open_files[_filename]
+        if _filename in self.open_files:
+            self.open_files.remove(_filename)
         else:
             raise SDClosingUnopenedException(_filename)
 
+    def make_alias(self, alias, cell):
+        parsed_cell = self._parse(cell, check_aliases = False)
+
+        if None in parsed_cell[1:4]:  # Doesn't have a book, a sheet or a initial cell
+            pb, ps, pc = parsed_cell[1:4]
+            raise SDCantResolveAliasException(f"Either book ({pb}), sheet ({ps}) or cell ({pc}) are not defined")
+
+        if parsed_cell in self.reverse_aliases.keys():
+            previous_cell_alias = self.reverse_aliases[parsed_cell]
+            del self.aliases[previous_cell_alias]
+            del self.reverse_aliases[parsed_cell]
+
+        self.aliases[alias] = parsed_cell
+        self.reverse_aliases[parsed_cell] = alias
 
 if __name__ == "__main__":
     #c = CachedCellDereferencer()

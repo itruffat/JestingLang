@@ -75,3 +75,10 @@ class MultilineLexerTest(TestCase):
         expected_ts = [('INCLUDE_EXTERNAL_FILE', '#INCLUDE', 1, 0), ('TEXT', '_test.xml', 1, 9)]
         new_ts = squeeze_lexer("#INCLUDE _test.xml")
         self.assertEqual(expected_ts, new_ts)
+
+
+    def test_assign(self):
+        expected_ts = [('TEXT', 'TEST1', 1, 0), ('ASSIGN_ALIAS', '?', 1, 6), ('TEXT', 'A1', 1, 8)]
+        new_ts = squeeze_lexer("TEST1 ? A1")
+        self.assertEqual(expected_ts, new_ts)
+

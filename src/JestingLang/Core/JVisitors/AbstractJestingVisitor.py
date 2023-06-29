@@ -46,6 +46,9 @@ class AbstractJestingVisitor(ABC):
     def visitTick(self, node):
         raise Exception("Not implemented outside of ScriptJester")
 
+    def visitAlias(self, node):
+        raise Exception("Not implemented outside of ScriptJester")
+
     def visitRawInput(self, node):
         raise Exception("Not implemented outside of ScriptJester")
 
