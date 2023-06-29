@@ -13,7 +13,7 @@ functions they use.
 It was created for the JESTING APP, a Python-based 
 Spreadsheet program used to emulate behaviours similar 
 to those Spreadsheet Applications. Mostly to test 
-esoteric programs created for those applications.
+esoteric code created to work on those applications.
 
 ## Syntax and AST
 
@@ -50,13 +50,13 @@ Here are the 3 structures used in this project:
   which could be as trivial as printing its data. The ones
   we will actually care about are those that take care of 
   doing the interpretations/execution of the AST. The idea 
-  is to keep them "technology-agnostic", so these visitors 
+  is to keep them "application-agnostic", so these visitors 
   do not manipulate memory directly on their own, and 
   have no way of directly resolving any reference.
 
 
 * **De-referencers** can access memory and resolve the
-  references used in the visitors. They exists to abstract
+  references used in the visitors. They exist to abstract
   the behaviour with secondary effect of "of real components" 
   such as databases. Most of the examples of this repo will
   be constrained to python structures, such as simple
@@ -121,6 +121,17 @@ For example, if we had this as a file *example.jestScript*:
     // Output all of the values 
     !!
 
+    // Import code from other File
+    #INCLUDE imported_in_example.jestScript
+
+    // Create an Alias
+    FIRST_CELL ? A1
+
+    // Use the Alias as a regular cell name
+    FIRST_CELL @ 12
+    A2 @= FIRST_CELL + 1
+    !FIRST_CELL
+
     // Close a file
     { BOOK_A
 
@@ -140,6 +151,5 @@ of this) will probably be the main goal of this library.
 ## TODO
 
 * Finish dates as datatypes
-* Finish the Script visitor
 * Add function for readall
 * Use the script visitor to create more test cases
