@@ -23,6 +23,7 @@ class ScriptInterpreterVisitor(ContextBoundInterpreterVisitor):
         self.default_sheet = None
         self.default_cell = None
         self.output = output if output is not None else stdout
+        self.rules = {}
 
     def visitScript(self, node):
         for n, sub_node in node.children.items():
@@ -61,7 +62,7 @@ class ScriptInterpreterVisitor(ContextBoundInterpreterVisitor):
 
     def visitPrintValue(self, node):
         if node.print_all:
-            self.output.write(self.scriptManager.read_all())
+            self.output.write(str(map(str, self.scriptManager.read_all())))
         else:
             cell = node.children[0]
             if node.print_value:
@@ -76,4 +77,26 @@ class ScriptInterpreterVisitor(ContextBoundInterpreterVisitor):
             self.scriptManager.open_file(file_name)
         else:
             self.scriptManager.close_file(file_name)
-            
+
+    def visitAddress2Rule(self, node):
+        rule = node.source
+        address = node.target
+        if node.assign:
+            self.scriptManager.add_address_to_rule(rule, address)
+        else:
+            self.scriptManager.remove_address_from_rule(rule, address)
+
+    def visitStatement2Rule(self, node):
+        rule = node.source
+        statement_and_color = (node.children[0], node.color)
+        if type(statement_and_color[0]) is not EmptyValueNode:
+            self.scriptManager.update_rule(rule, statement_and_color)
+        else:
+            self.scriptManager.delete_rule(rule)
+
+    def visitLockAddresses(self, node):
+        address = node.target
+        if node.lock:
+            self.scriptManager.lock_address(address)
+        else:
+            self.scriptManager.unlock_address(address)

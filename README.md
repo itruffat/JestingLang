@@ -93,43 +93,46 @@ For example, if we had this as a file *example.jestScript*:
 
     // Comments are allowed and should always start with a '//'
 
+    // Import code from other File
+    *INCLUDE* imported_in_example.jestScript
+
     // Open a file
     } BOOK_A
 
-    //  Set the raw value "xxx 2" to the cell [BOOK_A]Sheet_A!A1
-    [BOOK_A]Sheet_A!A1 @ xxx 2
+    // Set the raw value "xxx 2" to the cell [BOOK_A]Sheet_A!A1
+    //  (Note: First space is mandatory and will be ignored)
+    [BOOK_A]Sheet_A!A1 << xxx 2
 
-    // Set the default values for file and sheet
-    // (needs to be a complete cell for the moment)
-    : [BOOK_A]Sheet_A!A1
+    // Set the default file and default sheet
+    //  (Note: needs to be a complete cell for the moment)
+    @ [BOOK_A]Sheet_A!A1
 
     //  Set the raw value "12" to the cell [BOOK_A]Sheet_A!A1
-    [BOOK_A]Sheet_A!A1 @ 12
+    A1 << 12
 
     // Set the result ("12") to the cell [BOOK_A]Sheet_A!A2 
-    A2 @= 12
+    //  (Note: spaces are not important here)
+    A2 <~ 12
 
     // Set the formula below to the cell [BOOK_A]Sheet_A!A3 
-    A3 @= A1 * 2
+    A3 <~ A1 * 2
 
-    // Run a Tick of time. ([BOOK_A]Sheet_A!A3 will become 24) 
-    ~
+    // Run a Tick of time
+    //  (Note: [BOOK_A]Sheet_A!A3 will become 24) 
+    ;
 
     // Output the value of [BOOK_A]Sheet_A!A2 
     !A2
 
-    // Output all of the values 
+    // Output all of the values
     !!
-
-    // Import code from other File
-    #INCLUDE imported_in_example.jestScript
 
     // Create an Alias
     FIRST_CELL ? A1
 
     // Use the Alias as a regular cell name
-    FIRST_CELL @ 12
-    A2 @= FIRST_CELL + 1
+    FIRST_CELL << 12
+    A2 <~ FIRST_CELL + 1
     !FIRST_CELL
 
     // Close a file

@@ -1,10 +1,12 @@
+from JestingLang.Core.JParsing.JestingAST import OperationNode, ReferenceValueNode, EmptyValueNode
+from JestingLang.JestingScript.JParsing.JestingScriptAST import ScriptNode, AssignStatementToRuleNode
 from JestingLang.LexerParser import LexerParser
 from unittest import TestCase
 from JestingLang.Misc.JTesting.NonFileExternalFileLoader import NonFileExternalFileLoader
 from JestingLang.JestingScript.JFileLoader.ExternalFileLoader import ExternalLoaderException
 
-a1_code = "A3 @=A1+12 \nA2 @ 1+1"
-cyclical_error_code = f"#INCLUDE fileCyclicalError \n {a1_code}"
+a1_code = "A3 <~ A1+12 \nA2 << 1+1"
+cyclical_error_code = f"*INCLUDE* fileCyclicalError \n {a1_code}"
 
 test_loader = \
     NonFileExternalFileLoader(
@@ -15,14 +17,13 @@ test_loader = \
     )
 
 lexerParser = LexerParser(multilineScript=True, external_file_loader=test_loader)
-parser = lexerParser.parser
 
 
 class ScriptParserTest(TestCase):
 
     def test_include(self):
-        answer = parser.parse("#INCLUDE fileA1")
-        expected = parser.parse(a1_code)
+        answer = lexerParser.parse("*INCLUDE* fileA1")
+        expected = lexerParser.parse(a1_code)
         self.assertEqual(type(expected), type(answer))
         self.assertEqual(len(expected.children), len(answer.children))
         for n in range(len(answer.children)):
@@ -30,10 +31,47 @@ class ScriptParserTest(TestCase):
             expected_n = expected.children[n]
             self.assertEqual(type(expected_n), type(answer_n))
 
+    def test_color_rule_define(self):
+        answer = lexerParser.parse("# RULE1 ~> 1=1 , 12 , 11 , 10 ")
+        self.assertEqual(ScriptNode, type(answer))
+        self.assertEqual(1, len(answer.children) )
+        self.assertEqual("RULE1", answer.children[0].source)
+        self.assertEqual(AssignStatementToRuleNode, type(answer.children[0]))
+        self.assertEqual(1, len(answer.children[0].children))
+        self.assertEqual(OperationNode, type(answer.children[0].children[0]))
+        self.assertEqual((12, 11, 10), answer.children[0].color)
+
+
+    def test_color_rule_delete(self):
+        answer2 = lexerParser.parse("# RULE1 <~ , , , ")
+        self.assertEqual(ScriptNode, type(answer2))
+        self.assertEqual(1, len(answer2.children))
+        self.assertEqual("RULE1", answer2.children[0].source)
+        self.assertEqual(AssignStatementToRuleNode, type(answer2.children[0]))
+        self.assertEqual(1, len(answer2.children[0].children))
+        self.assertEqual(EmptyValueNode, type(answer2.children[0].children[0]))
+
+    def test_color_rule_apply(self):
+        answer = lexerParser.parse("# RULE1 ~> A1 ")
+        self.assertEqual(ScriptNode, type(answer))
+        self.assertEqual(1, len(answer.children))
+        self.assertEqual("RULE1", answer.children[0].source)
+        self.assertEqual("A1", answer.children[0].target)
+        self.assertEqual(True, answer.children[0].assign)
+
+
+    def test_color_rule_remove(self):
+        answer2 = lexerParser.parse("# RULE1 <~ A1 ")
+        self.assertEqual(ScriptNode, type(answer2))
+        self.assertEqual(1, len(answer2.children))
+        self.assertEqual("RULE1", answer2.children[0].source)
+        self.assertEqual("A1", answer2.children[0].target)
+        self.assertEqual(False, answer2.children[0].assign)
+
     def test_include_with_lines_before_and_after(self):
-        new_line ="C1 @ 2"
-        answer = parser.parse(new_line + "\n" + "#INCLUDE fileA1" + "\n" + new_line)
-        expected = parser.parse(new_line + "\n" + a1_code + "\n" + new_line)
+        new_line ="C1 << 2"
+        answer = lexerParser.parse(new_line + "\n" + "*INCLUDE* fileA1" + "\n" + new_line)
+        expected = lexerParser.parse(new_line + "\n" + a1_code + "\n" + new_line)
         self.assertEqual(type(expected), type(answer))
         self.assertEqual(len(expected.children), len(answer.children))
         for n in range(len(answer.children)):
@@ -44,19 +82,19 @@ class ScriptParserTest(TestCase):
 
     def test_include_cyclical_fails(self):
         with self.assertRaises(ExternalLoaderException) as external_exception:
-            parser.parse(cyclical_error_code)
+            lexerParser.parse(cyclical_error_code)
         self.assertTrue(external_exception.exception.on_open)
 
     def test_assign_alias(self):
 
         with self.assertRaises(AssertionError):
-            parser.parse("B1 ? A1")  # Assigning to a Cell
+            lexerParser.parse("B1 ? A1")  # Assigning to a Cell
 
         with self.assertRaises(AssertionError):
-            parser.parse("TEST3 ? TEST4")  # Assigning something that's not a cell
+            lexerParser.parse("TEST3 ? TEST4")  # Assigning something that's not a cell
 
         with self.assertRaises(AssertionError):
-            parser.parse("TEST1 ? A1\n TEST2 ? TEST1")  # Assigning something that's a cell-reference (not a cell)
+            lexerParser.parse("TEST1 ? A1\n TEST2 ? TEST1")  # Assigning something that's a cell-reference (not a cell)
 
-        parser.parse("TEST1 ? A1")
-        parser.parse("TEST1 ? A2\n TEST2 ? A3")
+        lexerParser.parse("TEST1 ? A1")
+        lexerParser.parse("TEST1 ? A2\n TEST2 ? A3")

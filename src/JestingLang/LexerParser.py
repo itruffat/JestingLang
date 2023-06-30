@@ -29,15 +29,19 @@ class LexerParser:
                  ) + self.fixed_implementations + self.logic_functions \
                       + self.indirect_fixed_operations + self.fixed_operations + ('TEXT',)
         if self.multilineScript:
-            self.tokens += ('ASSIGN_FORMULA', 'ASSIGN_VALUE', 'UNASSIGN', 'ASSIGN_ALIAS', 'TICK',
+            self.tokens += ('RIGHT_LEFT_ASSIGN', 'ASSIGN_VALUE', 'LEFT_RIGHT_ASSIGN', 'ASSIGN_ALIAS', 'TICK',
                             'SETDEFAULTS', 'PRINT', 'NEWLINE', 'COMMENT',
-                            'OPEN', 'CLOSE', 'INCLUDE_EXTERNAL_FILE', )
+                            'OPEN', 'CLOSE', 'INCLUDE_EXTERNAL_FILE', 'RULE_INDICATOR', 'LOCK', 'UNLOCK', )
             self.external_file_loader = \
                 external_file_loader if external_file_loader is not None else ExternalFileLoader()
         self.setup_tokens()
         self.lexer = self.jesting_lexer()
         self.parser = self.jesting_parser()
         self.clearup_tokens()
+
+    def parse(self, code, *, needs_fresh_lexer = False):
+        tmp_lexer = self.lexer.clone() if needs_fresh_lexer else self.lexer  # Allows multiple parsings at once
+        return self.parser.parse(code, lexer=tmp_lexer)
 
     def setup_tokens(self):
         global tokens
@@ -66,16 +70,17 @@ class LexerParser:
         # ~~~ START OF MULTILINE
 
         if self.multilineScript:
-            t_INCLUDE_EXTERNAL_FILE = r'\#INCLUDE'
+            t_INCLUDE_EXTERNAL_FILE = r'\*INCLUDE\*'
+            t_RULE_INDICATOR = r'\#'
             t_ASSIGN_ALIAS=r'\?'
-            t_ASSIGN_FORMULA = r'@='
+            t_RIGHT_LEFT_ASSIGN = r'<~'
             def t_ASSIGN_VALUE(t):
-                r'@\s[^\n]+'
-                t.value = t.value[2:]
+                r'<<\s[^\n]+'
+                t.value = t.value[3:]
                 return t
-            t_UNASSIGN = r'@'
-            t_TICK = r'~+'
-            t_SETDEFAULTS=r':'
+            t_LEFT_RIGHT_ASSIGN = r'~>'
+            t_TICK = r';+'
+            t_SETDEFAULTS=r'@'
             t_PRINT=r'!'
             def t_COMMENT(t):
                 r'//[^\n]*'
@@ -89,6 +94,8 @@ class LexerParser:
                 r'{[^\n]*'
                 t.value = f"[{t.value[1:].strip()}]"
                 return t
+            t_LOCK=r"\(\+\)"
+            t_UNLOCK=r"\(-\)"
 
         # ~~~ END OF MULTILINE
 
@@ -127,7 +134,7 @@ class LexerParser:
             return t
 
         if not self.useCellToken:
-            t_TEXT.__doc__ = r'[a-zA-Z_\.\[\]!][a-zA-Z_0-9\.\[\]!]*'
+            t_TEXT.__doc__ = r'[a-zA-Z_\.\[\]][a-zA-Z_0-9\.\[\]!]*'
 
         def t_NEWLINE(t):
             r'\n[\n 	]*'
@@ -219,13 +226,19 @@ class LexerParser:
                         | CLOSE
                         | PRINT PRINT
                         | PRINT CELL_ADDRESS
+                        | LOCK CELL_ADDRESS
+                        | UNLOCK CELL_ADDRESS
                         | SETDEFAULTS CELL_ADDRESS
-                        | CELL_ADDRESS UNASSIGN
+                        | CELL_ADDRESS LEFT_RIGHT_ASSIGN
                         | CELL_ADDRESS ASSIGN_VALUE
                         | INCLUDE_EXTERNAL_FILE TEXT
                         | PRINT EQUALS CELL_ADDRESS
-                        | CELL_ADDRESS ASSIGN_FORMULA statement
+                        | CELL_ADDRESS RIGHT_LEFT_ASSIGN statement
                         | TEXT ASSIGN_ALIAS CELL_ADDRESS
+                        | RULE_INDICATOR TEXT LEFT_RIGHT_ASSIGN CELL_ADDRESS
+                        | RULE_INDICATOR TEXT RIGHT_LEFT_ASSIGN CELL_ADDRESS
+                        | RULE_INDICATOR TEXT LEFT_RIGHT_ASSIGN statement COMMA NUMBER COMMA NUMBER COMMA NUMBER
+                        | RULE_INDICATOR TEXT RIGHT_LEFT_ASSIGN COMMA COMMA COMMA
                 '''
 
                 if len(t) == 2:
@@ -247,14 +260,18 @@ class LexerParser:
                             t[0] = PrintValueNode(print_all=True)
                         else:
                             t[0] = PrintValueNode(cell=t[2], print_value=True)
-                    elif subtokenIsType(t, 2, "UNASSIGN"):
+                    elif subtokenIsType(t, 2, "LEFT_RIGHT_ASSIGN"):
                         t[0] = AssignNode(t[1], EmptyValueNode())
+                    elif subtokenIsType(t, 1, "LOCK"):
+                        t[0] = LockAddressNode(t[2], lock=True)
+                    elif subtokenIsType(t, 1, "UNLOCK"):
+                        t[0] = LockAddressNode(t[2], lock=False)
                     elif subtokenIsType(t, 2, "ASSIGN_VALUE"):
                         t[0] = AssignNode(t[1], RawInputNode(t[2]))
                     elif subtokenIsType(t, 1, "INCLUDE_EXTERNAL_FILE"):
-                        tmp_lexer = self.lexer.clone()  # Due to how ply work, we need a different lexer
                         external_code = self.external_file_loader.load(t[2])
-                        t[0] = self.parser.parse(external_code, lexer=tmp_lexer)
+                        # Due to how ply works, we need a fresh lexer or it will throw out current tokens' pipeline
+                        t[0] = self.parse(external_code, needs_fresh_lexer=True)
                         self.external_file_loader.unload(t[2])
                     else:
                         t[0] = None
@@ -269,6 +286,18 @@ class LexerParser:
                         t[0] = PrintValueNode(cell=t[3], print_value=False)
                     else:
                         t[0] = AssignNode(t[1], t[3])
+
+                elif len(t) == 5:
+                    assign_or_unassign = subtokenIsType(t, 3, "LEFT_RIGHT_ASSIGN")
+                    t[0] = AssignAddressToRuleNode(t[2], t[4], assign = assign_or_unassign)
+
+                elif len(t) == 7:
+                    colors = (-1,-1,-1)
+                    t[0] = AssignStatementToRuleNode(t[2], EmptyValueNode(), colors)
+
+                elif len(t) == 11:
+                    colors = (t[6], t[8], t[10])
+                    t[0] = AssignStatementToRuleNode(t[2], t[4], colors)
 
                 return t[0]
 

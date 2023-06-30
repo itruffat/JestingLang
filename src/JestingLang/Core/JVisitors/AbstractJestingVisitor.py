@@ -63,3 +63,12 @@ class AbstractJestingVisitor(ABC):
 
     def visitOpenCloseFile(self, node):
         raise Exception("Not implemented outside of ScriptJester")
+
+    def visitAddress2Rule(self, node):
+        raise Exception("Not implemented outside of ScriptJester")
+
+    def visitStatement2Rule(self, node):
+        raise Exception("Not implemented outside of ScriptJester")
+
+    def visitLockAddresses(self, node):
+        raise Exception("Not implemented outside of ScriptJester")

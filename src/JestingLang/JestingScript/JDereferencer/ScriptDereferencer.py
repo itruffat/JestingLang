@@ -21,6 +21,18 @@ class SDClosingUnopenedException(SDException):
 class SDCantResolveAliasException(SDException):
     pass
 
+class SDUnknownRuleReferenced(SDException):
+    pass
+
+class SDRuleNeverReferencesAddress(SDException):
+    pass
+
+class SDUnlockingUnlockedAddress(SDException):
+    pass
+
+class SDLockingLockedAddress(SDException):
+    pass
+
 class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
     """
     """
@@ -30,6 +42,8 @@ class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
         self.open_files = set()
         self.aliases = {}
         self.reverse_aliases = {}
+        self.rules = {}
+        self.locked_addresses = set()
         self.default_book = None
         self.default_sheet = None
         self.default_cell = None
@@ -92,10 +106,21 @@ class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
     def read(self, key, cache=True):
         book, sheet, cell = self.parse_key(key, require_open=False)
         self._unset_local_defaults()
-        return self.cache[book][sheet][cell] if cache else self.memory[book][sheet][cell]
+        return (self.cache[book][sheet][cell], self.memory[book][sheet][cell])
 
     def read_all(self):
-        pass
+        list_of_cells = []
+        for book in self.memory.keys():
+            for sheet in self.memory[book].keys():
+                for cell in self.memory[book][sheet].keys():
+                    if type(self.memory[book][sheet][cell]) is not EmptyValueNode:
+                        list_of_cells.append((book,sheet,cell))
+        list_of_cells.sort()
+        answer = []
+        for book, sheet, cell in list_of_cells:
+            self._set_local_defaults(book=book, sheet=sheet) # Each node is resolved with itself as local
+            answer.append(((book,sheet,cell), self.cache[book][sheet][cell], self.memory[book][sheet][cell],))
+        return answer
 
     def set_default(self, default):
         _, book, sheet, cell, _ = self._parse(default)
@@ -145,6 +170,44 @@ class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
 
         self.aliases[alias] = parsed_cell
         self.reverse_aliases[parsed_cell] = alias
+
+    def add_address_to_rule(self, rule, address):
+        if rule not in self.rules.keys():
+            raise SDUnknownRuleReferenced(f"Adding cell to unknown rule ({rule})")
+        statement_and_color, addresses = self.rules[rule]
+        addresses.add(address)
+        self.rules[rule] = (statement_and_color, addresses)
+
+    def remove_address_from_rule(self, rule, address):
+        if rule not in self.rules.keys():
+            raise SDUnknownRuleReferenced(f"Trying to remove cell from unknown rule ({rule})")
+        if address not in self.rules[rule][1]:
+            raise SDRuleNeverReferencesAddress(f"Invalid reference made on delete ({rule}~>{address})")
+        statement_and_color, addresses  = self.rules[rule]
+        addresses.remove(address)
+        self.rules[rule] = (statement_and_color, addresses)
+
+    def update_rule(self, rule, statement_and_color):
+        if rule not in self.rules.keys():
+            addresses = set()
+        else:
+            _, addresses = self.rules[rule]
+        self.rules[rule] = (statement_and_color, addresses)
+
+    def delete_rule(self, rule):
+        if rule not in self.rules.keys():
+            raise SDUnknownRuleReferenced(f"Trying to delete a non existing rule ({rule})")
+        del self.rules[rule]
+
+    def lock_address(self, address):
+        if address in self.locked_addresses:
+            raise SDLockingLockedAddress("")
+        self.locked_addresses.add(address)
+
+    def unlock_address(self, address):
+        if address not in self.locked_addresses:
+            raise SDUnlockingUnlockedAddress("")
+        self.locked_addresses.remove(address)
 
 if __name__ == "__main__":
     #c = CachedCellDereferencer()

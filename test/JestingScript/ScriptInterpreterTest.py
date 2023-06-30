@@ -17,7 +17,6 @@ test_loader = \
 
 
 lexerParser = LexerParser(multilineScript=True, external_file_loader=test_loader)
-parser = lexerParser.parser
 
 
 class ScriptInterpreterTest(TestCase):
@@ -42,14 +41,14 @@ class ScriptInterpreterTest(TestCase):
             "} sarasa",
             "} pepe"
         ])
-        tree = parser.parse(code)
+        tree = lexerParser.parse(code)
         self.visitor.visit(tree)
         self.assertEqual(2, len(self.dereferencer.open_files))
 
     def test_file_exceptions(self):
 
         def _raise(_code, _exception):
-            tree = parser.parse(_code)
+            tree = lexerParser.parse(_code)
             with self.assertRaises(_exception):
                 self.visitor.visit(tree)
 
@@ -67,26 +66,26 @@ class ScriptInterpreterTest(TestCase):
 
         code_write_error = '\n'.join([
             "} test3",
-            "[test4]sheet1!A1 @ 12" ])
+            "[test4]sheet1!A1 << 12" ])
 
         _raise(_code=code_write_error, _exception=SDWritingUnopenedException)
 
         code_no_errors = '\n'.join([
             "} test5",
-            "[test5]sheet1!A1 @ 12",
+            "[test5]sheet1!A1 << 12",
             "{ test5"])
 
-        tree_no_errors = parser.parse(code_no_errors)
+        tree_no_errors = lexerParser.parse(code_no_errors)
         self.visitor.visit(tree_no_errors)
 
     def test_single_write(self):
 
         code = '\n'.join([
             "} test1",
-            "[test1]sheet1!A1 @ 12",
+            "[test1]sheet1!A1 << 12",
             "{ test1"])
 
-        tree= parser.parse(code)
+        tree= lexerParser.parse(code)
         self.visitor.visit(tree)
         self.assertEqual(0, len(self.dereferencer.open_files))
         self.assertEqual(12, self.cache['[test1]']['sheet1!']['A1'].value)
@@ -95,14 +94,14 @@ class ScriptInterpreterTest(TestCase):
 
         code = '\n'.join([
             "} test1",
-            "[test1]sheet1!A1 @    12",
-            "[test1]sheet1!A2 @ test",
-            "[test1]sheet1!A3 @= 12+1",
-            "[test1]sheet1!A4 @ = 12+1",
-            "[test1]sheet1!A5 @= \"13\"",
+            "[test1]sheet1!A1 <<    12",
+            "[test1]sheet1!A2 << test",
+            "[test1]sheet1!A3 <~ 12+1",
+            "[test1]sheet1!A4 << = 12+1",
+            "[test1]sheet1!A5 <~ \"13\"",
             "{ test1"])
 
-        tree= parser.parse(code)
+        tree= lexerParser.parse(code)
         self.visitor.visit(tree)
         self.assertEqual(12, self.cache['[test1]']['sheet1!']['A1'].value)
         self.assertEqual("test", self.cache['[test1]']['sheet1!']['A2'].value)
@@ -115,16 +114,16 @@ class ScriptInterpreterTest(TestCase):
         code = '\n'.join([
             "} test1",
             "// WITH PING",
-            "[test1]sheet1!A1 @ 12",
-            "~",
-            "[test1]sheet1!A2 @= [test1]sheet1!A1+2",
+            "[test1]sheet1!A1 << 12",
+            ";",
+            "[test1]sheet1!A2 <~ [test1]sheet1!A1+2",
             "// WITHOUT PING",
-            "[test1]sheet1!A1 @ 12",
-            "[test1]sheet1!A3 @ 3",
-            "[test1]sheet1!A4 @= A3 + 1",
+            "[test1]sheet1!A1 << 12",
+            "[test1]sheet1!A3 << 3",
+            "[test1]sheet1!A4 <~ A3 + 1",
             "{ test1"])
 
-        tree= parser.parse(code)
+        tree= lexerParser.parse(code)
         self.visitor.visit(tree)
         self.assertEqual(12, self.cache['[test1]']['sheet1!']['A1'].value)
         self.assertEqual(14, self.cache['[test1]']['sheet1!']['A2'].value)
@@ -135,18 +134,18 @@ class ScriptInterpreterTest(TestCase):
         code = '\n'.join([
                 "} test1",
                 "// WITH PING",
-                "[test1]sheet1!A1 @= A1+1",
-                "~",
-                "[test1]sheet1!A2 @= A2+1",
-                "~",
-                "[test1]sheet1!A3 @= A3+1",
-                "~",
-                "[test1]sheet1!A4 @= A4+1",
-                "~",
-                "[test1]sheet1!A5 @= A5+1",
+                "[test1]sheet1!A1 <~ A1+1",
+                ";",
+                "[test1]sheet1!A2 <~ A2+1",
+                ";",
+                "[test1]sheet1!A3 <~ A3+1",
+                ";",
+                "[test1]sheet1!A4 <~ A4+1",
+                ";",
+                "[test1]sheet1!A5 <~ A5+1",
                 "{ test1"])
 
-        tree = parser.parse(code)
+        tree = lexerParser.parse(code)
 
         self.slow_visitor.visit(tree)
         self.assertEqual(4, self.cache['[test1]']['sheet1!']['A1'].value)
@@ -169,14 +168,14 @@ class ScriptInterpreterTest(TestCase):
         code = '\n'.join([
                 "} test1",
                 "// WITH PING",
-                "[test1]sheet1!A1 @= A1 + A2 + 1",
-                "[test1]sheet1!A2 @ 3",
-                "~",
-                "[test1]sheet1!A3 @= A1 + A2 + 1",
+                "[test1]sheet1!A1 <~ A1 + A2 + 1",
+                "[test1]sheet1!A2 << 3",
+                ";",
+                "[test1]sheet1!A3 <~ A1 + A2 + 1",
                 "{ test1"
                 ""])
 
-        tree = parser.parse(code)
+        tree = lexerParser.parse(code)
 
         self.slow_visitor.visit(tree)
         self.assertEqual(4, self.cache['[test1]']['sheet1!']['A1'].value)
@@ -190,7 +189,7 @@ class ScriptInterpreterTest(TestCase):
                 "{ test1",
                 " "])
 
-        tree = parser.parse(code)
+        tree = lexerParser.parse(code)
 
         with self.assertRaises(SDCantResolveAliasException):
             self.slow_visitor.visit(tree)
@@ -198,20 +197,20 @@ class ScriptInterpreterTest(TestCase):
     def test_aliases(self):
         code = '\n'.join([
             "} test1",
-            ": [test1]sheet1!A1",
+            "@ [test1]sheet1!A1",
             "",
             "TEST_NAME ? A2",
-            "TEST_NAME @ 2",
+            "TEST_NAME << 2",
             "",
             "TEST_NAME ? A3",
-            "TEST_NAME @ 3",
-            "A4 @= TEST_NAME + 1 ",
-            "~",
-            "~",
+            "TEST_NAME << 3",
+            "A4 <~ TEST_NAME + 1 ",
+            ";",
+            ";",
             "{ test1",
             " "])
 
-        tree = parser.parse(code)
+        tree = lexerParser.parse(code)
         self.slow_visitor.visit(tree)
 
         self.assertEqual(2, self.cache['[test1]']['sheet1!']['A2'].value)
@@ -225,15 +224,15 @@ class ScriptInterpreterTest(TestCase):
     def test_alias_and_include(self):
         code = '\n'.join([
             "} test1",
-            ": [test1]sheet1!A1",
-            "#INCLUDE aliasA2",
-            "TEST_NAME_ALIASED @ 10",
-            "A3 @= TEST_NAME_ALIASED + 1 ",
-            "~",
+            "@ [test1]sheet1!A1",
+            "*INCLUDE* aliasA2",
+            "TEST_NAME_ALIASED << 10",
+            "A3 <~ TEST_NAME_ALIASED + 1 ",
+            ";",
             "{ test1",
             " "])
 
-        tree = parser.parse(code)
+        tree = lexerParser.parse(code)
         self.slow_visitor.visit(tree)
 
         self.assertEqual(10, self.cache['[test1]']['sheet1!']['A2'].value)
@@ -242,6 +241,59 @@ class ScriptInterpreterTest(TestCase):
         manager = self.slow_visitor.scriptManager
         self.assertTrue('TEST_NAME_ALIASED' in manager.aliases.keys())
         self.assertTrue((None, '[test1]', 'sheet1!', 'A2', None) in manager.reverse_aliases.keys())
+
+    def test_color_basic(self):
+        code = '\n'.join([
+            "} test1",
+            "@ [test1]sheet1!A1",
+            "# RULE1 ~> 1=1 , 2 , 3 , 1",
+            "# RULE2 ~> 2=3 , 1 , 0 , 2",
+            "# RULE3 ~> 1=3 , 9 , 1 , 0",
+            "# RULE1 ~> A3 ",
+            "# RULE1 ~> A4 ",
+            "# RULE1 ~> A5 ",
+            "# RULE2 ~> A6 ",
+            "# RULE2 ~> A7 ",
+            "# RULE3 ~> A9 ",
+            "# RULE2 <~ ,,,",
+            "# RULE1 <~ A4",
+            "{ test1"
+        ])
+        tree = lexerParser.parse(code)
+        self.visitor.visit(tree)
+        self.assertEqual(2, len(self.dereferencer.rules))
+        #Rule 1
+        self.assertEqual(tuple,type(self.dereferencer.rules["RULE1"]))
+        self.assertEquals((2, 3, 1), self.dereferencer.rules["RULE1"][0][1])
+        self.assertEqual(2,len(self.dereferencer.rules["RULE1"][1]))
+        self.assertTrue("A3" in self.dereferencer.rules["RULE1"][1])
+        self.assertTrue("A5" in self.dereferencer.rules["RULE1"][1])
+        #Rule 3
+        self.assertEqual(tuple,type(self.dereferencer.rules["RULE3"]))
+        self.assertEquals((9, 1, 0), self.dereferencer.rules["RULE3"][0][1])
+        self.assertEqual(1,len(self.dereferencer.rules["RULE3"][1]))
+        self.assertTrue("A9" in self.dereferencer.rules["RULE3"][1])
+
+
+    def test_lock_basic(self):
+        code = '\n'.join([
+            "} test1",
+            "(+) A2",
+            "(+) A3",
+            "(+) A4",
+            "(+) A5",
+            "(+) A6",
+            "(-) A5",
+            "(-) A4",
+            "{ test1"
+        ])
+
+        tree = lexerParser.parse(code)
+        self.visitor.visit(tree)
+        self.assertEqual(3, len(self.dereferencer.locked_addresses))
+        self.assertTrue("A2" in self.dereferencer.locked_addresses)
+        self.assertTrue("A3" in self.dereferencer.locked_addresses)
+        self.assertTrue("A6" in self.dereferencer.locked_addresses)
 
 if __name__ == "__main__":
     print(40)

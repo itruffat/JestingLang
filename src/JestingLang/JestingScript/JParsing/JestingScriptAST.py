@@ -49,6 +49,44 @@ class AssignNode(Node):
     def volatile(self):
         return False
 
+class AssignAddressToRuleNode(Node):
+    def __init__(self, rule, cell, assign):
+        super().__init__()
+        self.source = rule
+        self.target = cell
+        self.assign = assign
+
+    def accept(self, visitor):
+        return visitor.visitAddress2Rule(self)
+
+    def volatile(self):
+        return False
+
+class AssignStatementToRuleNode(Node):
+    def __init__(self, rule, statement, color):
+        super().__init__()
+        self.source = rule
+        self.children = {0: statement}
+        self.color = color
+
+    def accept(self, visitor):
+        return visitor.visitStatement2Rule(self)
+
+    def volatile(self):
+        return False
+
+class LockAddressNode(Node):
+    def __init__(self, address, lock):
+        super().__init__()
+        self.target = address
+        self.lock = lock
+
+    def accept(self, visitor):
+        return visitor.visitLockAddresses(self)
+
+    def volatile(self):
+        return False
+
 class AliasNode(Node):
     def __init__(self, alias, cell):
         super().__init__()
