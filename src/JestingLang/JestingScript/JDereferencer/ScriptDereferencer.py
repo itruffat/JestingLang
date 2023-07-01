@@ -18,7 +18,7 @@ class SDWritingUnopenedException(SDException):
 class SDClosingUnopenedException(SDException):
     pass
 
-class SDCantResolveAliasException(SDException):
+class SDCantResolveGivenAddressException(SDException):
     pass
 
 class SDUnknownRuleReferenced(SDException):
@@ -65,6 +65,15 @@ class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
                 sheet = sheet if sheet is not None else self.default_sheet
                 cell = cell if cell is not None else self.default_cell
         return path, book, sheet, cell, final
+
+    def _parse_and_check(self, address, check_aliases = True):
+        parsed_address = self._parse(address, check_aliases)
+
+        if None in parsed_address[1:4]:  # Doesn't have a book, a sheet or a initial cell
+            pb, ps, pc = parsed_address[1:4]
+            raise SDCantResolveGivenAddressException(f"Either book ({pb}), sheet ({ps}) or cell ({pc}) are not defined")
+        
+        return parsed_address
 
     def tick(self, visitor):
         new_cache = {}
@@ -156,35 +165,33 @@ class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
         else:
             raise SDClosingUnopenedException(_filename)
 
-    def make_alias(self, alias, cell):
-        parsed_cell = self._parse(cell, check_aliases = False)
+    def make_alias(self, alias, address):
+        parsed_address = self._parse_and_check(address, check_aliases=False)
 
-        if None in parsed_cell[1:4]:  # Doesn't have a book, a sheet or a initial cell
-            pb, ps, pc = parsed_cell[1:4]
-            raise SDCantResolveAliasException(f"Either book ({pb}), sheet ({ps}) or cell ({pc}) are not defined")
-
-        if parsed_cell in self.reverse_aliases.keys():
-            previous_cell_alias = self.reverse_aliases[parsed_cell]
+        if parsed_address in self.reverse_aliases.keys():
+            previous_cell_alias = self.reverse_aliases[parsed_address]
             del self.aliases[previous_cell_alias]
-            del self.reverse_aliases[parsed_cell]
+            del self.reverse_aliases[parsed_address]
 
-        self.aliases[alias] = parsed_cell
-        self.reverse_aliases[parsed_cell] = alias
+        self.aliases[alias] = parsed_address
+        self.reverse_aliases[parsed_address] = alias
 
     def add_address_to_rule(self, rule, address):
         if rule not in self.rules.keys():
-            raise SDUnknownRuleReferenced(f"Adding cell to unknown rule ({rule})")
+            raise SDUnknownRuleReferenced(f"Adding address to unknown rule ({rule})")
+        parsed_address = self._parse_and_check(address, check_aliases=True)
         statement_and_color, addresses = self.rules[rule]
-        addresses.add(address)
+        addresses.add(parsed_address)
         self.rules[rule] = (statement_and_color, addresses)
 
     def remove_address_from_rule(self, rule, address):
         if rule not in self.rules.keys():
-            raise SDUnknownRuleReferenced(f"Trying to remove cell from unknown rule ({rule})")
-        if address not in self.rules[rule][1]:
+            raise SDUnknownRuleReferenced(f"Trying to remove address from unknown rule ({rule})")
+        parsed_address = self._parse_and_check(address, check_aliases=True)
+        if parsed_address not in self.rules[rule][1]:
             raise SDRuleNeverReferencesAddress(f"Invalid reference made on delete ({rule}~>{address})")
-        statement_and_color, addresses  = self.rules[rule]
-        addresses.remove(address)
+        statement_and_color, addresses = self.rules[rule]
+        addresses.remove(parsed_address)
         self.rules[rule] = (statement_and_color, addresses)
 
     def update_rule(self, rule, statement_and_color):
@@ -200,14 +207,16 @@ class ScriptDereferencer(CachedCellDereferencer, AbstractScriptManager):
         del self.rules[rule]
 
     def lock_address(self, address):
-        if address in self.locked_addresses:
+        parsed_address = self._parse_and_check(address, check_aliases=True)
+        if parsed_address in self.locked_addresses:
             raise SDLockingLockedAddress("")
-        self.locked_addresses.add(address)
+        self.locked_addresses.add(parsed_address)
 
     def unlock_address(self, address):
-        if address not in self.locked_addresses:
+        parsed_address = self._parse_and_check(address, check_aliases=True)
+        if parsed_address not in self.locked_addresses:
             raise SDUnlockingUnlockedAddress("")
-        self.locked_addresses.remove(address)
+        self.locked_addresses.remove(parsed_address)
 
 if __name__ == "__main__":
     #c = CachedCellDereferencer()

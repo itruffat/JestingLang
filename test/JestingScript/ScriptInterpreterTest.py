@@ -1,9 +1,11 @@
 from JestingLang.Misc.JTesting.DereferencerHelper import DereferencerHelper
 from unittest import TestCase
 from JestingLang.LexerParser import LexerParser
-from JestingLang.JestingScript.JDereferencer.ScriptDereferencer import (ScriptDereferencer, SDClosingUnopenedException,
-                                                                        SDWritingUnopenedException, SDOpenFileException,
-                                                                        SDCantResolveAliasException)
+from JestingLang.JestingScript.JDereferencer.ScriptDereferencer import (
+    ScriptDereferencer, SDClosingUnopenedException, SDWritingUnopenedException, SDOpenFileException,
+    SDCantResolveGivenAddressException, SDRuleNeverReferencesAddress, SDUnknownRuleReferenced,
+    SDUnlockingUnlockedAddress, SDLockingLockedAddress
+)
 from JestingLang.JestingScript.JVisitors.ScriptInterpreterVisitor import ScriptInterpreterVisitor
 from JestingLang.Misc.JTesting.NonFileExternalFileLoader import NonFileExternalFileLoader
 
@@ -18,6 +20,8 @@ test_loader = \
 
 lexerParser = LexerParser(multilineScript=True, external_file_loader=test_loader)
 
+def pref(cell):
+    return None, "[test1]", "sheet1!", cell, None
 
 class ScriptInterpreterTest(TestCase):
 
@@ -34,6 +38,10 @@ class ScriptInterpreterTest(TestCase):
         del self.dereferencer
         del self.helper
         del self.visitor
+
+    def resetTestEnv(self):
+        self.tearDown()
+        self.setUp()
 
     def test_open(self):
         self.helper.writeNumber("A1", 14)
@@ -154,8 +162,7 @@ class ScriptInterpreterTest(TestCase):
         self.assertEqual(1, self.cache['[test1]']['sheet1!']['A4'].value)
         self.assertEqual(None, self.cache['[test1]']['sheet1!']['A5'].value)
 
-        self.tearDown()
-        self.setUp()
+        self.resetTestEnv()
 
         self.visitor.visit(tree)
         self.assertEqual(5, self.cache['[test1]']['sheet1!']['A1'].value)
@@ -191,7 +198,7 @@ class ScriptInterpreterTest(TestCase):
 
         tree = lexerParser.parse(code)
 
-        with self.assertRaises(SDCantResolveAliasException):
+        with self.assertRaises(SDCantResolveGivenAddressException):
             self.slow_visitor.visit(tree)
 
     def test_aliases(self):
@@ -219,7 +226,7 @@ class ScriptInterpreterTest(TestCase):
 
         manager = self.slow_visitor.scriptManager
         self.assertTrue('TEST_NAME' in manager.aliases.keys())
-        self.assertTrue((None, '[test1]', 'sheet1!', 'A2', None) in manager.reverse_aliases.keys())
+        self.assertTrue(pref('A2') in manager.reverse_aliases.keys())
 
     def test_alias_and_include(self):
         code = '\n'.join([
@@ -240,9 +247,9 @@ class ScriptInterpreterTest(TestCase):
 
         manager = self.slow_visitor.scriptManager
         self.assertTrue('TEST_NAME_ALIASED' in manager.aliases.keys())
-        self.assertTrue((None, '[test1]', 'sheet1!', 'A2', None) in manager.reverse_aliases.keys())
+        self.assertTrue(pref('A2') in manager.reverse_aliases.keys())
 
-    def test_color_basic(self):
+    def test_rules_basic(self):
         code = '\n'.join([
             "} test1",
             "@ [test1]sheet1!A1",
@@ -266,18 +273,57 @@ class ScriptInterpreterTest(TestCase):
         self.assertEqual(tuple,type(self.dereferencer.rules["RULE1"]))
         self.assertEquals((2, 3, 1), self.dereferencer.rules["RULE1"][0][1])
         self.assertEqual(2,len(self.dereferencer.rules["RULE1"][1]))
-        self.assertTrue("A3" in self.dereferencer.rules["RULE1"][1])
-        self.assertTrue("A5" in self.dereferencer.rules["RULE1"][1])
+        self.assertTrue(pref("A3") in self.dereferencer.rules["RULE1"][1])
+        self.assertTrue(pref("A5") in self.dereferencer.rules["RULE1"][1])
         #Rule 3
         self.assertEqual(tuple,type(self.dereferencer.rules["RULE3"]))
         self.assertEquals((9, 1, 0), self.dereferencer.rules["RULE3"][0][1])
         self.assertEqual(1,len(self.dereferencer.rules["RULE3"][1]))
-        self.assertTrue("A9" in self.dereferencer.rules["RULE3"][1])
+        self.assertTrue(pref("A9") in self.dereferencer.rules["RULE3"][1])
 
+
+
+    def test_rules_fails(self):
+        code1 = '\n'.join([
+            "} test1",
+            "# RULE1 ~> 1=1 , 2 , 3 , 1",
+            "# RULE1 ~> A3 ",
+            "{ test1"
+        ])
+        tree = lexerParser.parse(code1)
+        with self.assertRaises(SDCantResolveGivenAddressException):
+            self.visitor.visit(tree)
+
+        self.resetTestEnv()
+
+        code2 = '\n'.join([
+            "} test1",
+            "@ [test1]sheet1!A1",
+            "# RULE1 ~> 1=1 , 2 , 3 , 1",
+            "# RULE1 ~> A3 ",
+            "# RULE1 <~ A4 ",
+            "{ test1"
+        ])
+        tree = lexerParser.parse(code2)
+        with self.assertRaises(SDRuleNeverReferencesAddress):
+            self.visitor.visit(tree)
+
+        self.resetTestEnv()
+
+        code3= '\n'.join([
+            "} test1",
+            "@ [test1]sheet1!A1",
+            "# RULE1 ~> A3 ",
+            "{ test1"
+        ])
+        tree = lexerParser.parse(code3)
+        with self.assertRaises(SDUnknownRuleReferenced):
+            self.visitor.visit(tree)
 
     def test_lock_basic(self):
         code = '\n'.join([
             "} test1",
+            "@ [test1]sheet1!A1",
             "(+) A2",
             "(+) A3",
             "(+) A4",
@@ -291,9 +337,48 @@ class ScriptInterpreterTest(TestCase):
         tree = lexerParser.parse(code)
         self.visitor.visit(tree)
         self.assertEqual(3, len(self.dereferencer.locked_addresses))
-        self.assertTrue("A2" in self.dereferencer.locked_addresses)
-        self.assertTrue("A3" in self.dereferencer.locked_addresses)
-        self.assertTrue("A6" in self.dereferencer.locked_addresses)
+        self.assertTrue(pref("A2") in self.dereferencer.locked_addresses)
+        self.assertTrue(pref("A3") in self.dereferencer.locked_addresses)
+        self.assertTrue(pref("A6") in self.dereferencer.locked_addresses)
+
+
+    def test_lock_fails(self):
+        code1 = '\n'.join([
+            "} test1",
+            "(+) A1",
+            "{ test1"
+        ])
+        tree = lexerParser.parse(code1)
+        with self.assertRaises(SDCantResolveGivenAddressException):
+            self.visitor.visit(tree)
+
+        self.resetTestEnv()
+
+        code2 = '\n'.join([
+            "} test1",
+            "@ [test1]sheet1!A1",
+            "(+) A1",
+            "(-) A2",
+            "{ test1"
+        ])
+        tree = lexerParser.parse(code2)
+        with self.assertRaises(SDUnlockingUnlockedAddress):
+            self.visitor.visit(tree)
+
+        self.resetTestEnv()
+
+        code3 = '\n'.join([
+            "} test1",
+            "@ [test1]sheet1!A1",
+            "(+) A1",
+            "(+) A1",
+            "{ test1"
+        ])
+        tree = lexerParser.parse(code3)
+        with self.assertRaises(SDLockingLockedAddress):
+            self.visitor.visit(tree)
+
+        self.resetTestEnv()
 
 if __name__ == "__main__":
     print(40)

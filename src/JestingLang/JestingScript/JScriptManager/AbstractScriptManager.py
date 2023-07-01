@@ -41,7 +41,7 @@ class AbstractScriptManager(ABC):
         pass
 
     @abstractmethod
-    def make_alias(self, alias, cell):
+    def make_alias(self, alias, address):
         pass
 
     @abstractmethod

@@ -1,6 +1,6 @@
 from JestingLang.Core.JParsing.JestingAST import OperationNode, ReferenceValueNode, EmptyValueNode
 from JestingLang.JestingScript.JParsing.JestingScriptAST import ScriptNode, AssignStatementToRuleNode
-from JestingLang.LexerParser import LexerParser
+from JestingLang.LexerParser import LexerParser, UnparsableCodeException, UntokenizableCodeException
 from unittest import TestCase
 from JestingLang.Misc.JTesting.NonFileExternalFileLoader import NonFileExternalFileLoader
 from JestingLang.JestingScript.JFileLoader.ExternalFileLoader import ExternalLoaderException
@@ -20,6 +20,23 @@ lexerParser = LexerParser(multilineScript=True, external_file_loader=test_loader
 
 
 class ScriptParserTest(TestCase):
+
+    def test_errors(self):
+        # No errors
+        code0 = "A1 << 2 \n } TEST1 \n TEST3 ? A1"
+        lexerParser.lexer.input(code0)
+        lexerParser.parse(code0)
+
+        # Token error
+        code1 = "A1 $ << 2 \n } TEST1 \n TEST3 ? A1"
+        with self.assertRaises(UntokenizableCodeException):
+            lexerParser.parse(code1)
+
+        # Parse error
+        code2 = "A1 << 2 \n } TEST1 TEST3 ? A1"
+        with self.assertRaises(UnparsableCodeException):
+            lexerParser.parse(code2)
+
 
     def test_include(self):
         answer = lexerParser.parse("*INCLUDE* fileA1")

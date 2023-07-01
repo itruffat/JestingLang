@@ -5,6 +5,16 @@ from JestingLang.JestingScript.JParsing.JestingScriptAST import *
 from JestingLang.JestingScript.JFileLoader.ExternalFileLoader import ExternalFileLoader
 from JestingLang.Misc.JLogic.LogicFunctions import address_regex_str, address
 
+class LexerParserException(Exception):
+    def __init__(self, t):
+        self.t = t
+
+class UntokenizableCodeException(LexerParserException):
+    pass
+
+class UnparsableCodeException(LexerParserException):
+    pass
+
 def getTokenType(tokens, position):
     return tokens.slice[position].type
 
@@ -70,6 +80,7 @@ class LexerParser:
         # ~~~ START OF MULTILINE
 
         if self.multilineScript:
+
             t_INCLUDE_EXTERNAL_FILE = r'\*INCLUDE\*'
             t_RULE_INDICATOR = r'\#'
             t_ASSIGN_ALIAS=r'\?'
@@ -87,15 +98,23 @@ class LexerParser:
                 t.value = t.value[2:]
                 return t
             def t_OPEN(t):
-                r'}[^\n]*'
+                r'}[ 	]*[^ 	\n]+[ 	]*'
                 t.value = f"[{t.value[1:].strip()}]"
                 return t
             def t_CLOSE(t):
-                r'{[^\n]*'
+                r'{[ 	]*[^ 	\n]+[ 	]*'
                 t.value = f"[{t.value[1:].strip()}]"
                 return t
             t_LOCK=r"\(\+\)"
             t_UNLOCK=r"\(-\)"
+            def t_NEWLINE(t):
+                r'\n[\n 	]*'
+                t.lexer.lineno += t.value.count("\n")
+                if self.multilineScript:
+                    t.value = "\n"
+                else:
+                    t = None
+                return t
 
         # ~~~ END OF MULTILINE
 
@@ -136,24 +155,19 @@ class LexerParser:
         if not self.useCellToken:
             t_TEXT.__doc__ = r'[a-zA-Z_\.\[\]][a-zA-Z_0-9\.\[\]!]*'
 
-        def t_NEWLINE(t):
-            r'\n[\n 	]*'
-            t.lexer.lineno += t.value.count("\n")
-            if self.multilineScript:
-                t.value = "\n"
-            else:
-                t = None
-            return t
-
         def t_error(t):
             print("Illegal character '%s'" % t.value[0])
-            t.lexer.skip(1)
+            raise UntokenizableCodeException(t)
+            #t.lexer.skip(1)
 
         t_ignore = " \t"
 
         lexer = lex.lex()
 
         return lexer
+
+    def parser_error(self, place, step=""):
+        raise Exception(f"Unknown {place}{': ' if len(step) > 0 else '' }{step}")
 
     def jesting_parser(self):
 
@@ -183,10 +197,14 @@ class LexerParser:
                     t[0] = t[2]
                 elif len(t) == 3:
                     t[0] = t[1]
-                else:
+                elif len(t) == 4:
                     t[0] = t[2]
+                else:
+                    self.parser_error('start')
+
                 if t[0] is None:
                     raise Exception("Empty program")
+
                 return t[0]
 
             def p_lines(t):
@@ -217,6 +235,9 @@ class LexerParser:
                                 t[0] = t[0].addChild(t[3].children[child])
                         else:
                             t[0] = t[1].addChild(t[3])
+                else:
+                    self.parser_error('Lines')
+
                 return t[0]
 
             def p_line(t):
@@ -249,15 +270,17 @@ class LexerParser:
                         t[0] = OpenCloseFileNode(t[1], do_open=True)
                     elif subtokenIsType(t, 1, "CLOSE"):
                         t[0] = OpenCloseFileNode(t[1], do_open=False)
-                    else:
+                    elif subtokenIsType(t, 1, "COMMENT"):
                         t[0] = None
+                    else:
+                        self.parser_error('Line', 'len-2')
 
                 elif len(t) == 3:
                     if subtokenIsType(t,1,"SETDEFAULTS"):
                         t[0] = SetDefaultsNode(t[2])
                     elif subtokenIsType(t, 1, "PRINT"):
                         if subtokenIsType(t, 2, "PRINT"):
-                            t[0] = PrintValueNode(print_all=True)
+                            t[0] = PrintValueNode(print_all=True, print_value=True)
                         else:
                             t[0] = PrintValueNode(cell=t[2], print_value=True)
                     elif subtokenIsType(t, 2, "LEFT_RIGHT_ASSIGN"):
@@ -274,18 +297,20 @@ class LexerParser:
                         t[0] = self.parse(external_code, needs_fresh_lexer=True)
                         self.external_file_loader.unload(t[2])
                     else:
-                        t[0] = None
+                        self.parser_error('Line', 'len-3')
 
                 elif len(t) == 4:
-                    if subtokenIsType(t,2,"ASSIGN_ALIAS"):
+                    if subtokenIsType(t, 2, "ASSIGN_ALIAS"):
                         if not self.useCellToken:
                             assert(address.match(t[1]) is None)
                             assert(address.match(t[3]) is not None)
                         t[0] = AliasNode(alias=t[1], cell=t[3])
                     elif subtokenIsType(t, 1, "PRINT"):
                         t[0] = PrintValueNode(cell=t[3], print_value=False)
-                    else:
+                    elif subtokenIsType(t, 2, "RIGHT_LEFT_ASSIGN"):
                         t[0] = AssignNode(t[1], t[3])
+                    else:
+                        self.parser_error('Line', 'len-4')
 
                 elif len(t) == 5:
                     assign_or_unassign = subtokenIsType(t, 3, "LEFT_RIGHT_ASSIGN")
@@ -298,6 +323,9 @@ class LexerParser:
                 elif len(t) == 11:
                     colors = (t[6], t[8], t[10])
                     t[0] = AssignStatementToRuleNode(t[2], t[4], colors)
+
+                else:
+                    self.parser_error('Line', 'Unknown length')
 
                 return t[0]
 
@@ -323,7 +351,7 @@ class LexerParser:
                 t[0] += t[3]
             return t[0]
 
-        def p_callable_opereation(t):
+        def p_callable_operation(t):
             '''callable_operation   : IF LPAREN statement COMMA  statement COMMA statement RPAREN
                                     | NOT LPAREN statement RPAREN
                                     | AND LPAREN statement COMMA statement RPAREN
@@ -332,13 +360,13 @@ class LexerParser:
                                     | TEXT LPAREN statement_list RPAREN'''
             if subtokenIsType(t, 1, "NOT"):
                 t[0] = OperationNode(t[1], {0: t[3]})
-            if subtokenIsType(t, 1, "AND") or subtokenIsType(t, 1, "OR"):
+            elif subtokenIsType(t, 1, "AND") or subtokenIsType(t, 1, "OR"):
                 t[0] = OperationNode(t[1], {0: t[3], 1: t[5]})
-            if subtokenIsType(t, 1, "IF"):
+            elif subtokenIsType(t, 1, "IF"):
                 t[0] = IfNode(t[3], t[5], t[7])
-            if subtokenIsType(t, 1, "INDIRECT"):
+            elif subtokenIsType(t, 1, "INDIRECT"):
                 t[0] = IndirectNode(t[3])
-            if subtokenIsType(t, 1, "TEXT"):
+            elif subtokenIsType(t, 1, "TEXT"):
                 if t[1] not in self.spreadsheet_function_set.keys():
                     raise Exception("unknown text")
                 else:
@@ -346,10 +374,13 @@ class LexerParser:
                     children = {k: v for k, v in enumerate(t[3])}
                     assert(len(children) == operands)
                     t[0] = OperationNode(t[1], children)
+            else:
+                self.parser_error('Operation')
+
             return t[0]
 
 
-        def p_statement_paren(t):
+        def p_statement_parent(t):
             '''statement    :  LPAREN statement RPAREN '''
             t[0] = t[2]
             return t[0]
@@ -369,38 +400,27 @@ class LexerParser:
                                 | statement SMALLER EQUALS statement
                                 | MINUS statement %prec UMINUS '''
             if subtokenIsType(t, 1, "MINUS"):
-            #if t[1] == "-":
-                #t[0] = OperationNode("u-", {0: t[2]})
                 t[0] = OperationNode("NEGATE", {0: t[2]})
-            #elif t[2] in ['<', '>']:
             elif subtokenIsType(t, 2, "SMALLER") or subtokenIsType(t, 2, "BIGGER"):
-                #if t[2] == '<' and t[3] == '>':
-                if subtokenIsType(t, 2, "SMALLER") and subtokenIsType(t, 3, "BIGGER"):
+                if subtokenIsType(t, 2, "SMALLER") and subtokenIsType(t, 3, "BIGGER"):  # <>
                     equals = OperationNode('EQUALS', {0: t[1], 1: t[4]})
-                    #equals = OperationNode('=', {0: t[1], 1: t[4]})
                     t[0] = OperationNode('NOT', {0: equals})
                 else:
                     second = t[4] if subtokenIsType(t, 3, "EQUALS") else t[3]
-                    #second = t[4] if t[3] == '=' else t[3]
-                    #if t[2] == '>':
                     if subtokenIsType(t, 2, "BIGGER"):
                         bg, sm = (t[1], second)
                     else:
                         bg, sm = (second, t[1])  # IN CASE ITS SMALLER JUST REVERSE THE ORDER
                     bigger = OperationNode('BIGGER', {0: bg, 1: sm})
-                    #bigger = OperationNode('>', {0: bg, 1: sm})
-                    #if t[3] == '=':
                     if subtokenIsType(t, 3, "EQUALS"):
                         equals = OperationNode('EQUALS', {0: bg, 1: sm})
-                        #equals = OperationNode('=', {0: bg, 1: sm})
                         t[0] = OperationNode('OR', {0: equals, 1: bigger})
                     else:
                         t[0] = bigger
             else:
-                t[0] = OperationNode(getTokenType(t,2) , {0: t[1], 1: t[3]})
-                #t[0] = OperationNode(t[2], {0: t[1], 1: t[3]})
-            return t[0]
+                t[0] = OperationNode(getTokenType(t, 2), {0: t[1], 1: t[3]})
 
+            return t[0]
 
         def p_parameter_int(t):
             '''parameter    : NUMBER'''
@@ -436,9 +456,9 @@ class LexerParser:
                 t[0] = ReferenceValueNode(t[1])
             return t[0]
 
-
         def p_error(t):
             print("Syntax error at '%s'" % t.value)
+            raise UnparsableCodeException(t)
 
         parser = yacc.yacc(tabmodule="LexerParser_cachedParseTable", debug=False)
 
