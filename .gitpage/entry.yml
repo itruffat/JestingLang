@@ -1,0 +1,6 @@
+name: Jesting Lang 
+category: Esolanguage-stuff
+skip: False
+description : | 
+  Abstract syntax, parser, and interpreter for a language designed to emulate the behavior of spreadsheet processors, from Excel to Google Sheets.
+  It is intended as a foundation for other applications that can run on this surprisingly powerful and expressive syntax.
