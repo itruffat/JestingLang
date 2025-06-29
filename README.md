@@ -1,23 +1,63 @@
 ## INTRODUCTION
 
-***Jesting Language*** is a minimalist functional-like 
-language, intended to be compatible with the standard 
-syntax used in most Spreadsheet applications, such as 
-**Microsoft's Excel**, 
-**Libre Office's Calc** and 
-**Google's Sheets**. 
-It can be considered a subset of the core languages used 
-in those programs, but lacking many of the rich syntax and 
-functions they use.
+This repository mantains the **JestingLang** project and
+its related components, which includes both the core
+***JestingLang*** Language and it's more complex offspring, 
+the ***JestingScript*** Language. 
 
-It was created for the JESTING APP, a Python-based 
-Spreadsheet program used to emulate behaviours similar 
-to those Spreadsheet Applications. Mostly to test 
-esoteric code created to work on those applications.
+The idea behind this initiative was to provide a tool 
+we can use to prove the often-overlooked computational 
+power of `Spreedsheets` and the unamed, underlying Syntax 
+most of them share in common. I am not the first one to 
+notice this, and the point has become particularly popular 
+after Felienne Harmans' ["Pure functional Programming in 
+Excel"](https://www.youtube.com/watch?v=0yKf8TrLUOw) 
+presentation. (A bit old at this point, but that's a very 
+fun presentation with a Turing Machine written in Excel, 
+personally recommended if you have the time)
+
+It was first used it for my Python-oriented SpreedSheet 
+simulator, called JestingApp (`currently being refactored`), 
+which is where the names of the languages were derived from. 
+However, it was moved to it's own repositoryto make it 
+available to other projects.
+
+## Jesting Language
+
+
+The **JestingLang** language is an ultra-minimalist 
+functional-like language, imitating what would 
+generally be found inside one cell in a spreedsheet 
+appllication.
+
+       IF(1+1 = $A2 , 'Hello' , 'World')
+
+One useful way to think about it would be as a subset 
+of the cell-languages used in programs such as 
+**Microsoft's Excel**, **Libre Office's Calc** and 
+**Google's Sheets**. 
+
+
+     Disclaimer: due to the language being compatible with 
+     all of those tools, `JestingLang` lacks most of the more 
+     complex functions these tools use but don't share in 
+     common. (For example `VLOOKUP`) 
+     
+     This makes it technically weaker that all of them, but 
+     still capable enough to prove it's power.
+
+
+
+In a more practical sense, the expectationis for the 
+language is to be interpreted by some `supervisor` that 
+controls many of these cells in parallel, sometimes referencing one-another in some way. Exactly how the cells would be 
+deferenced or in which order things are executed is not defined 
+in the language itself. Instead, those are things to be decided 
+by the `supervisor` that's running them.
 
 ## Syntax and AST
 
-The Jesting Lang syntax follows the standard used by most
+The `JestingLang` syntax follows the standard used by most
 spreadsheets programs, allowing simple operations (+, -, *
 , /, =, & ), the **IF token** (to allow branching), the use of 
 indirections to other cells such as A2 (key behaviour or
@@ -37,7 +77,34 @@ The AST can become more complex, with nodes such as
 *EmptyValue* or *DateValue*. However, they can be easily
 solved by using the Visitors provided in this library.
 
-## Structures: T.V.D.
+## Jesting Script
+
+If we were to imitate a spreedsheet application's behavior, one shortcomming of the `supervisor` approach given by ***Jesting Lang*** 
+is that we loose any way to track `side-effects` that appear when 
+filling the cells. In applications like Excel, details like which 
+cells first were filled first can actually change the data.
+
+In other words, we could have 2 programs with exactly the same
+initial values in every cells, that return completely different
+results because they were done in differnet order.
+
+To capture this chronological behaviour, we also introduce the
+***JestingScript*** Language, a super-set of ***JestingLang***
+that explicitly includes `side-effects`. Concepts like *"opening*
+*a file"*, *"Storing information at a location"* and *"Waiting for*
+*time to pass"* are all present in this new language.
+
+
+    } BOOK_A
+    A1 << 12
+    ;
+    A3 <~ A1 * 2
+    ;
+    { BOOK_A
+
+## Python Implementation
+
+### Structures: T.V.D.
 
 Here are the 3 structures used in this project:
 
@@ -62,7 +129,7 @@ Here are the 3 structures used in this project:
   be constrained to python structures, such as simple
   arrays or key-value maps.
 
-## Fixed vs Volatile Visitors
+### Fixed vs Volatile Visitors
 
 Some APPS using JestingLang may need to precompile a tree 
 without actually resolving values or references, as the 
@@ -77,19 +144,9 @@ when visiting a tree. A fixed tree does the opposite, and
 returns a Tree without exploring any volatile Node. 
 
 
-## JestingScript
+### Running JestingScript
 
-A small variation has been made for the parser/lexer so
-that more than one line can be provided and additional 
-syntax instructions are understood. This means the 
-language is no longer functional (since it now has side
-effects), but it becomes more usable as it represents 
-common things done in other spreadsheet APPs,
-such as giving a cell a value, giving a cell a formula,
-changing 'current sheet/page/cells', printing a value,
-making a comment and making "time progress".
-
-For example, if we had this as a file *example.jestScript*:
+Let's imagine we have the following *example.jestScript* file:
 
     // Comments are allowed and should always start with a '//'
 
@@ -151,7 +208,7 @@ add a handful of test to make sure the language is working
 as expected. In the future, running this (or some derivation
 of this) will probably be the main goal of this library.
 
-## TODO
+### TODO
 
 * Finish dates as datatypes
 * Add function for readall
